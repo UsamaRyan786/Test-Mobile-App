@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Number Match Garden",
+    "slug": "number-match-garden",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#e9f7ee"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#e9f7ee"
+      }
+    }
+  }
+}
