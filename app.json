@@ -3,6 +3,7 @@
     "name": "Number Match Garden",
     "slug": "number-match-garden",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
