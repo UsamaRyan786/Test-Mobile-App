@@ -18,7 +18,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#e9f7ee"
-      }
+      },
+      "package": "com.anonymous.numbermatchgarden"
     }
   }
 }
