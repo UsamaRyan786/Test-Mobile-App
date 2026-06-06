@@ -11,7 +11,7 @@ export default function VoiceAnswerPanel({ choices, disabled, roundKey, onAnswer
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [hint, setHint] = useState("Tap the mic and say your answer!");
-  const [available, setAvailable] = useState(true);
+  const [available, setAvailable] = useState(false);
   const sessionRef = useRef(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
 

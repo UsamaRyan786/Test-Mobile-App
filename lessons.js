@@ -1,3 +1,5 @@
+import { EXTRA_LESSONS } from "./lessonsExtra";
+
 const CORE_LESSON_DEFS = [
   {
     id: "counting",
@@ -228,8 +230,6 @@ const CORE_LESSON_DEFS = [
   }
 ];
 
-import { EXTRA_LESSONS } from "./lessonsExtra";
-
 const CORE_LESSONS = [
   CORE_LESSON_DEFS[0],
   CORE_LESSON_DEFS[1],
@@ -240,7 +240,7 @@ const CORE_LESSONS = [
 
 export { CORE_LESSONS };
 
-export const ALL_LESSONS = [
+export const LESSONS = [
   CORE_LESSONS[0],
   EXTRA_LESSONS[0],
   EXTRA_LESSONS[1],
@@ -257,9 +257,9 @@ export const ALL_LESSONS = [
   EXTRA_LESSONS[8]
 ];
 
-export { ALL_LESSONS as LESSONS };
+export const ALL_LESSONS = LESSONS;
 
-const LESSON_MAP = Object.fromEntries(ALL_LESSONS.map((lesson) => [lesson.id, lesson]));
+const LESSON_MAP = Object.fromEntries(LESSONS.map((lesson) => [lesson.id, lesson]));
 
 export const CATEGORY_LESSON = {
   counting: "counting",

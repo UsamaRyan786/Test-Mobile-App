@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Easing,
   Pressable,
@@ -130,6 +131,12 @@ async function loadProgress() {
 
 async function saveProgressData(progress) {
   await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+}
+
+const DEFAULT_REWARDS = { coins: 0, badges: {}, stats: { recordBreaks: 0, totalCorrect: 0 } };
+
+async function clearAllAppData() {
+  await AsyncStorage.multiRemove([HIGH_SCORES_KEY, REWARDS_KEY, PROGRESS_KEY]);
 }
 
 async function applyRewards(gameId, score, beatRecord, highScores) {
@@ -1106,6 +1113,33 @@ export default function App() {
     setScreen("dashboard");
   }
 
+  function confirmResetProgress() {
+    Alert.alert(
+      "Reset all progress?",
+      "This clears classes, game levels, high scores, coins, and badges on this device. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Reset", style: "destructive", onPress: resetAppProgress }
+      ]
+    );
+  }
+
+  async function resetAppProgress() {
+    stopClassroomSpeech();
+    stopLessonSpeech();
+    stopGameVoiceInput();
+    await clearAllAppData();
+    setHighScores({});
+    setRewards(DEFAULT_REWARDS);
+    setProgress(createDefaultProgress());
+    setSelectedLesson(LESSONS[0]);
+    setLessonSlide(0);
+    setLessonSlideKey((key) => key + 1);
+    setLessonFinished(false);
+    setLessonReplay(false);
+    setScreen("menu");
+  }
+
   function openClasses() {
     setScreen("classes");
   }
@@ -1921,6 +1955,16 @@ export default function App() {
               </View>
             </View>
           ))}
+
+          <Pressable
+            onPress={confirmResetProgress}
+            style={({ pressed }) => [styles.resetProgressButton, pressed && styles.pressedButton]}
+          >
+            <Text style={styles.resetProgressButtonText}>Reset all progress</Text>
+            <Text style={styles.resetProgressButtonHint}>
+              Clears classes, levels, scores, and badges on this phone
+            </Text>
+          </Pressable>
         </ScrollView>
       </ScreenShell>
     );
@@ -3383,6 +3427,30 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 14,
     marginTop: -4
+  },
+  resetProgressButton: {
+    marginTop: 28,
+    marginBottom: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
+    alignItems: "center",
+    gap: 4
+  },
+  resetProgressButtonText: {
+    color: "#B91C1C",
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  resetProgressButtonHint: {
+    color: "#991B1B",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 17
   },
   badgeCategorySection: {
     marginBottom: 18

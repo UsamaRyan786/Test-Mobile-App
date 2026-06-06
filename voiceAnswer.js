@@ -1,3 +1,5 @@
+import { requireOptionalNativeModule } from "expo";
+
 const WORD_NUMBERS = {
   zero: 0,
   oh: 0,
@@ -64,19 +66,37 @@ export function parseSpokenAnswer(transcript, choices = []) {
   return null;
 }
 
-export function getSpeechModule() {
-  try {
-    const { ExpoSpeechRecognitionModule } = require("expo-speech-recognition");
-    return ExpoSpeechRecognitionModule;
-  } catch {
+let speechModuleCache;
+
+function loadSpeechModule() {
+  const module = requireOptionalNativeModule("ExpoSpeechRecognition");
+  if (!module) {
     return null;
   }
+
+  const stop = module.stop?.bind(module);
+  const abort = module.abort?.bind(module);
+  if (stop) {
+    module.stop = () => stop();
+  }
+  if (abort) {
+    module.abort = () => abort();
+  }
+
+  return module;
+}
+
+export function getSpeechModule() {
+  if (speechModuleCache === undefined) {
+    speechModuleCache = loadSpeechModule();
+  }
+  return speechModuleCache;
 }
 
 export async function checkVoiceAnswerSupport() {
   const module = getSpeechModule();
   if (!module) {
-    return { available: false, reason: "Voice input needs a development build (not plain Expo Go)." };
+    return { available: false, reason: "Voice answers need a dev build — tap the buttons below in Expo Go." };
   }
 
   try {
