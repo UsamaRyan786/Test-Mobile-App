@@ -13,31 +13,29 @@ const CORE_LESSON_DEFS = [
       {
         title: "What is Counting?",
         emoji: "🌻",
-        body: "Counting means saying numbers in order to find how many things you have.",
-        tip: "One, two, three… each thing gets one number!",
-        narration:
-          "Hello boys and girls! Welcome to counting class. Counting means saying numbers in order, one, two, three, to find how many things you have. Watch the whiteboard as I draw each object.",
-        visual: { type: "dots", count: 5, item: "🌸" }
+        body: "Counting means saying numbers in order — one, two, three — to find how many things you have.",
+        tip: "Each flower gets its own number. Do not skip any!",
+        visual: { type: "dots", count: 5, item: "🌸", itemLabel: "flower" }
       },
       {
         title: "Touch Each One",
         emoji: "👆",
-        body: "Point to each object and say the next number. Don't skip any!",
-        tip: "Go slow — accuracy beats speed.",
-        visual: { type: "dots", count: 4, item: "🍎" }
+        body: "Point to each apple on the board and say the next number out loud.",
+        tip: "Go slow and steady — that is how big kids count!",
+        visual: { type: "dots", count: 4, item: "🍎", itemLabel: "apple" }
       },
       {
         title: "Numbers Match Groups",
         emoji: "🎯",
-        body: "Three flowers means the number 3. Five stars means the number 5.",
-        tip: "The last number you say is how many there are.",
-        visual: { type: "match", count: 3, item: "⭐" }
+        body: "Three stars on the board means the number 3. The last number you say tells you how many there are.",
+        tip: "When you finish counting, that last number is your answer!",
+        visual: { type: "match", count: 3, item: "⭐", itemLabel: "star" }
       },
       {
         title: "You're Ready!",
         emoji: "🎉",
-        body: "Great job! Dot-counting games like Number Match Garden are now unlocked!",
-        tip: "Compare Class comes next to learn bigger and smaller!",
+        body: "You learned to count! Dot-counting games like Number Match Garden are unlocked for you now.",
+        tip: "Next time, try Compare Class to learn bigger and smaller numbers!",
         visual: { type: "celebrate", emoji: "🌈" }
       }
     ]

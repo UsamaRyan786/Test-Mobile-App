@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
-import { buildSlideNarration, speakLesson, stopLessonSpeech } from "./lessonSpeech";
+import { buildSlideSpeechPlan, getBoardCountLabel, speakLesson, speakLessonSequence, stopLessonSpeech } from "./lessonSpeech";
 
 const TEACHER = {
   name: "Teacher Maya",
@@ -43,7 +43,7 @@ function AnimatedItem({ delay, children, style }) {
   );
 }
 
-function WhiteboardDrawing({ visual, slideKey }) {
+function WhiteboardDrawing({ visual, slideKey, revealedCount, boardLabel }) {
   if (!visual) {
     return (
       <View style={styles.boardEmpty}>
@@ -53,24 +53,37 @@ function WhiteboardDrawing({ visual, slideKey }) {
   }
 
   if (visual.type === "dots" || visual.type === "match") {
+    const showCount = revealedCount ?? visual.count;
+    const labels = boardLabel || "Count each one:";
+
     return (
       <View style={styles.boardContent}>
-        <Text style={styles.boardLabel}>Count each one:</Text>
+        {showCount > 0 ? <Text style={styles.boardLabel}>{labels}</Text> : null}
         <View style={styles.boardRow}>
-          {Array.from({ length: visual.count }, (_, index) => (
-            <AnimatedItem key={`${slideKey}-${index}`} delay={index * 220} style={styles.boardDotWrap}>
-              <View style={styles.boardCircle}>
-                <Text style={styles.boardCircleEmoji}>{visual.item}</Text>
-              </View>
-              <Text style={styles.boardDotNumber}>{index + 1}</Text>
-            </AnimatedItem>
-          ))}
+          {Array.from({ length: visual.count }, (_, index) => {
+            if (index >= showCount) {
+              return null;
+            }
+
+            return (
+              <AnimatedItem key={`${slideKey}-${index}`} delay={80} style={styles.boardDotWrap}>
+                <View style={styles.boardCircle}>
+                  <Text style={styles.boardCircleEmoji}>{visual.item}</Text>
+                </View>
+                <Text style={styles.boardDotNumber}>{index + 1}</Text>
+              </AnimatedItem>
+            );
+          })}
         </View>
-        <AnimatedItem delay={visual.count * 220 + 100}>
-          <View style={styles.boardAnswerBox}>
-            <Text style={styles.boardAnswerText}>Total = {visual.count}</Text>
-          </View>
-        </AnimatedItem>
+        {showCount >= visual.count ? (
+          <AnimatedItem delay={120}>
+            <View style={styles.boardAnswerBox}>
+              <Text style={styles.boardAnswerText}>Total = {visual.count}</Text>
+            </View>
+          </AnimatedItem>
+        ) : showCount === 0 ? (
+          <Text style={styles.boardWaitingText}>Watch Teacher Maya draw…</Text>
+        ) : null}
       </View>
     );
   }
@@ -261,10 +274,19 @@ function WhiteboardDrawing({ visual, slideKey }) {
 
 export default function LessonClassroom({ lesson, slide, slideIndex, slideKey }) {
   const [speaking, setSpeaking] = useState(false);
+  const [revealedCount, setRevealedCount] = useState(0);
+  const [liveCaption, setLiveCaption] = useState(slide.body);
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const usesRevealSync =
+    slide.visual?.type === "dots" || slide.visual?.type === "match" || slide.visual?.type === "celebrate";
 
   useEffect(() => {
     let active = true;
+    const plan = buildSlideSpeechPlan(slide, lesson, slideIndex);
+    const syncReveal =
+      plan.mode === "sequence" &&
+      (slide.visual?.type === "dots" || slide.visual?.type === "match" || slide.visual?.type === "celebrate");
+
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -284,31 +306,73 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey })
 
     stopLessonSpeech();
     setSpeaking(true);
+    setLiveCaption(slide.body);
+    setRevealedCount(syncReveal ? 0 : slide.visual?.count ?? 0);
     loop.start();
 
-    speakLesson(buildSlideNarration(slide, lesson), {
-      onDone: () => {
-        if (active) {
-          setSpeaking(false);
-          loop.stop();
-          pulseAnim.setValue(0);
-        }
+    const handleStepStart = (step) => {
+      if (!active) {
+        return;
       }
-    });
+      setLiveCaption(step.text);
+      if (typeof step.reveal === "number") {
+        setRevealedCount(step.reveal);
+      }
+    };
+
+    if (plan.mode === "sequence") {
+      speakLessonSequence(plan.steps, {
+        onStepStart: handleStepStart,
+        onDone: () => {
+          if (active) {
+            setSpeaking(false);
+            loop.stop();
+            pulseAnim.setValue(0);
+          }
+        }
+      });
+    } else {
+      speakLesson(plan.text, {
+        onDone: () => {
+          if (active) {
+            setSpeaking(false);
+            loop.stop();
+            pulseAnim.setValue(0);
+          }
+        }
+      });
+    }
 
     return () => {
       active = false;
       stopLessonSpeech();
       loop.stop();
     };
-  }, [lesson.id, slideIndex, slideKey, slide, lesson, pulseAnim]);
+  }, [lesson.id, slideIndex, slideKey]);
 
   function replaySpeech() {
     stopLessonSpeech();
     setSpeaking(true);
-    speakLesson(buildSlideNarration(slide, lesson), {
-      onDone: () => setSpeaking(false)
-    });
+    setLiveCaption(slide.body);
+    setRevealedCount(usesRevealSync ? 0 : slide.visual?.count ?? 0);
+
+    const plan = buildSlideSpeechPlan(slide, lesson, slideIndex);
+
+    if (plan.mode === "sequence") {
+      speakLessonSequence(plan.steps, {
+        onStepStart: (step) => {
+          setLiveCaption(step.text);
+          if (typeof step.reveal === "number") {
+            setRevealedCount(step.reveal);
+          }
+        },
+        onDone: () => setSpeaking(false)
+      });
+    } else {
+      speakLesson(plan.text, {
+        onDone: () => setSpeaking(false)
+      });
+    }
   }
 
   const mouthScale = pulseAnim.interpolate({
@@ -342,12 +406,18 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey })
           </View>
         </View>
         <View style={styles.whiteboardSurface}>
-          <WhiteboardDrawing visual={slide.visual} slideKey={slideKey} />
+          <WhiteboardDrawing
+            visual={slide.visual}
+            slideKey={slideKey}
+            revealedCount={usesRevealSync ? revealedCount : undefined}
+            boardLabel={getBoardCountLabel(slide.visual)}
+          />
         </View>
       </View>
 
       <View style={styles.captionBox}>
-        <Text style={styles.captionText}>{slide.body}</Text>
+        <Text style={styles.captionLive}>{speaking ? "Teacher Maya says:" : "Remember:"}</Text>
+        <Text style={styles.captionText}>{liveCaption}</Text>
         <Text style={styles.captionTip}>💡 {slide.tip}</Text>
       </View>
     </View>
@@ -411,6 +481,7 @@ const styles = StyleSheet.create({
   whiteboardSurface: { minHeight: 220, padding: 16, backgroundColor: "#1F4D3A" },
   boardEmpty: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 180 },
   boardEmptyText: { color: "rgba(255,255,255,0.7)", fontSize: 16, fontWeight: "700" },
+  boardWaitingText: { color: "rgba(255,255,255,0.55)", fontSize: 14, fontWeight: "700", marginTop: 8 },
   boardContent: { alignItems: "center", gap: 12 },
   boardLabel: { color: "#FFFFFF", fontSize: 15, fontWeight: "800" },
   boardRow: {
@@ -493,6 +564,7 @@ const styles = StyleSheet.create({
   boardCelebrateEmoji: { fontSize: 64 },
   boardCelebrateText: { color: "#FFFFFF", fontSize: 22, fontWeight: "900" },
   captionBox: { padding: 14, borderRadius: 16, backgroundColor: "#F8FAFC", gap: 8 },
+  captionLive: { color: "#6366F1", fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
   captionText: { color: "#1E3A5F", fontSize: 16, lineHeight: 24, fontWeight: "600" },
   captionTip: { color: "#5B7A9A", fontSize: 14, lineHeight: 20, fontWeight: "700" }
 });

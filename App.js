@@ -1132,6 +1132,11 @@ export default function App() {
     setHighScores({});
     setRewards(DEFAULT_REWARDS);
     setProgress(createDefaultProgress());
+    setSelectedGame(GAMES[0]);
+    setSelectedTier(1);
+    setSelectedLevel(1);
+    setScore(0);
+    setSessionReward(null);
     setSelectedLesson(LESSONS[0]);
     setLessonSlide(0);
     setLessonSlideKey((key) => key + 1);
@@ -1321,6 +1326,18 @@ export default function App() {
               <Text style={styles.menuRewardLabel}>Badges</Text>
             </View>
           </LinearGradient>
+
+          <Pressable
+            onPress={confirmResetProgress}
+            style={({ pressed }) => [styles.menuResetButton, pressed && styles.pressedButton]}
+            accessibilityRole="button"
+            accessibilityLabel="Reset all progress"
+          >
+            <Text style={styles.menuResetButtonText}>↺ Reset all progress</Text>
+            <Text style={styles.menuResetButtonHint}>
+              Clears classes, coins, badges, scores, and locks games again
+            </Text>
+          </Pressable>
 
           <LinearGradient colors={["#EEF2FF", "#E0E7FF"]} style={styles.classesPromo}>
             <View style={styles.classesPromoCopy}>
@@ -1956,15 +1973,6 @@ export default function App() {
             </View>
           ))}
 
-          <Pressable
-            onPress={confirmResetProgress}
-            style={({ pressed }) => [styles.resetProgressButton, pressed && styles.pressedButton]}
-          >
-            <Text style={styles.resetProgressButtonText}>Reset all progress</Text>
-            <Text style={styles.resetProgressButtonHint}>
-              Clears classes, levels, scores, and badges on this phone
-            </Text>
-          </Pressable>
         </ScrollView>
       </ScreenShell>
     );
@@ -3361,6 +3369,29 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     backgroundColor: "rgba(255,255,255,0.8)"
   },
+  menuResetButton: {
+    marginBottom: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
+    alignItems: "center",
+    gap: 4
+  },
+  menuResetButtonText: {
+    color: "#B91C1C",
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  menuResetButtonHint: {
+    color: "#991B1B",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 17
+  },
   sessionRewardBox: {
     width: "100%",
     padding: 16,
@@ -3427,30 +3458,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 14,
     marginTop: -4
-  },
-  resetProgressButton: {
-    marginTop: 28,
-    marginBottom: 24,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: "#FCA5A5",
-    backgroundColor: "#FEF2F2",
-    alignItems: "center",
-    gap: 4
-  },
-  resetProgressButtonText: {
-    color: "#B91C1C",
-    fontSize: 16,
-    fontWeight: "900"
-  },
-  resetProgressButtonHint: {
-    color: "#991B1B",
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-    lineHeight: 17
   },
   badgeCategorySection: {
     marginBottom: 18
