@@ -49,8 +49,11 @@ import {
   getScaledConfig,
   recordLevelResult,
   didPassLevel,
+  getPlayableCategoryLabels,
   getTierLabel
 } from "./progression";
+import LessonClassroom, { stopClassroomSpeech } from "./LessonClassroom";
+import { buildLessonOutro, speakLesson, stopLessonSpeech } from "./lessonSpeech";
 import {
   LESSONS,
   isLessonComplete,
@@ -858,8 +861,8 @@ function ClassCard({ lesson, progress, index, onPress }) {
             <Text style={styles.classCardTitle}>{lesson.title}</Text>
             <Text style={styles.classCardSubtitle}>{lesson.subtitle}</Text>
             <Text style={styles.classCardMeta}>
-              {lesson.slides.length} short lessons ·{" "}
-              {completed ? "✅ Completed" : unlocked ? "Tap to start →" : "Locked"}
+              🎧 {lesson.slides.length} steps ·{" "}
+              {completed ? "✅ Completed" : unlocked ? "Tap to listen →" : "Locked"}
             </Text>
           </View>
         </LinearGradient>
@@ -873,7 +876,7 @@ function LearningPathBar({ progress }) {
     <LinearGradient colors={["#ECFDF5", "#D1FAE5"]} style={styles.learningPathBar}>
       <Text style={styles.learningPathTitle}>🛤️ Your Learning Path</Text>
       <Text style={styles.learningPathSubtitle}>
-        Take each class first · Pass Level {MIN_LEVEL_FOR_NEXT_CATEGORY} in games to unlock the next step
+        Listen to each class · Finish the class to unlock those games only
       </Text>
       <View style={styles.learningPathRow}>
         {LEARNING_PATH.map((step, index) => {
@@ -938,6 +941,7 @@ export default function App() {
   const [selectedLevel, setSelectedLevel] = useState(1);
   const [selectedLesson, setSelectedLesson] = useState(LESSONS[1]);
   const [lessonSlide, setLessonSlide] = useState(0);
+  const [lessonSlideKey, setLessonSlideKey] = useState(0);
   const [lessonFinished, setLessonFinished] = useState(false);
 
   const currentHighScore = highScores[selectedGame.id]?.best ?? 0;
@@ -1071,7 +1075,7 @@ export default function App() {
   }
 
   function selectGame(game) {
-    if (!isGameUnlocked(progress, game, GAMES)) {
+    if (!isGameUnlocked(progress, game)) {
       return;
     }
     setSelectedGame(game);
@@ -1090,6 +1094,8 @@ export default function App() {
   }
 
   function backToMenu() {
+    stopClassroomSpeech();
+    stopLessonSpeech();
     setScreen("menu");
   }
 
@@ -1105,13 +1111,16 @@ export default function App() {
     if (!isLessonUnlocked(progress, lesson.id)) {
       return;
     }
+    stopClassroomSpeech();
     setSelectedLesson(lesson);
     setLessonSlide(getLessonProgress(progress, lesson.id).slide || 0);
+    setLessonSlideKey((key) => key + 1);
     setLessonFinished(false);
     setScreen("lesson");
   }
 
   function nextLessonSlide() {
+    stopClassroomSpeech();
     const lesson = selectedLesson;
     const isLast = lessonSlide >= lesson.slides.length - 1;
 
@@ -1120,6 +1129,7 @@ export default function App() {
       setProgress(updated);
       saveProgressData(updated);
       setLessonFinished(true);
+      speakLesson(buildLessonOutro(lesson));
       return;
     }
 
@@ -1128,10 +1138,13 @@ export default function App() {
     setProgress(updated);
     saveProgressData(updated);
     setLessonSlide(nextSlide);
+    setLessonSlideKey((key) => key + 1);
   }
 
   function replayLesson() {
+    stopClassroomSpeech();
     setLessonSlide(0);
+    setLessonSlideKey((key) => key + 1);
     setLessonFinished(false);
   }
 
@@ -1266,8 +1279,8 @@ export default function App() {
             <View style={styles.classesPromoCopy}>
               <Text style={styles.classesPromoTitle}>📚 Math Classes</Text>
               <Text style={styles.classesPromoText}>
-                Learn what + − × ÷ mean before you play! {getCompletedLessonCount(progress)}/
-                {LESSONS.length} completed.
+                Teacher Maya speaks and draws on the whiteboard! {getCompletedLessonCount(progress)}/
+                {LESSONS.length} classes done.
               </Text>
             </View>
             <Pressable
@@ -1282,9 +1295,17 @@ export default function App() {
             <Text style={styles.eyebrow}>✦ Pick Your Adventure ✦</Text>
             <Animated.Text style={[styles.title, titleStyle]}>Which game shall we play?</Animated.Text>
             <Text style={styles.subtitle}>
-              Take a class first, then play {GAMES.length} games with 10 levels each!
+              Listen in class first — then play only the games you have learned!
             </Text>
           </View>
+
+          {getPlayableCategoryLabels(progress).length > 0 ? (
+            <Text style={styles.playableHint}>
+              🎮 Unlocked games: {getPlayableCategoryLabels(progress).join(" · ")}
+            </Text>
+          ) : (
+            <Text style={styles.playableHint}>🎧 Start with Counting Class to unlock your first games!</Text>
+          )}
 
           <LearningPathBar progress={progress} />
 
@@ -1310,23 +1331,33 @@ export default function App() {
           </LinearGradient>
 
           {getGamesByCategory().map((section) => {
-            const categoryOpen = isCategoryUnlocked(progress, section.id, GAMES);
+            const categoryOpen = isCategoryUnlocked(progress, section.id);
             const unlockHint = getCategoryUnlockHint(section.id, progress);
+            if (!categoryOpen && unlockHint) {
+              return (
+                <View key={section.id} style={styles.gameCategorySection}>
+                  <View style={styles.gameCategoryHeader}>
+                    <Text style={styles.gameCategoryTitle}>{section.label}</Text>
+                    <Text style={styles.gameCategoryLockHint}>🔒 {unlockHint}</Text>
+                  </View>
+                </View>
+              );
+            }
+            if (!categoryOpen) {
+              return null;
+            }
 
             return (
               <View key={section.id} style={styles.gameCategorySection}>
                 <View style={styles.gameCategoryHeader}>
                   <Text style={styles.gameCategoryTitle}>{section.label}</Text>
-                  {!categoryOpen && unlockHint ? (
-                    <Text style={styles.gameCategoryLockHint}>🔒 {unlockHint}</Text>
-                  ) : null}
                 </View>
                 <View style={styles.gameCategoryList}>
                   {section.games.map((game) => {
                     const record = highScores[game.id] || { best: 0, plays: 0 };
                     const index = GAMES.findIndex((item) => item.id === game.id);
                     const gameProgress = getGameProgress(progress, game.id);
-                    const locked = !isGameUnlocked(progress, game, GAMES);
+                    const locked = !isGameUnlocked(progress, game);
                     const levelLabel = isTierUnlocked(progress, game.id, 2)
                       ? `Lv ${gameProgress.maxLevel}/10 · ★ Advanced`
                       : `Lv ${gameProgress.maxLevel}/${LEVELS_PER_TIER}`;
@@ -1674,10 +1705,11 @@ export default function App() {
           </View>
 
           <LinearGradient colors={["#FEF3C7", "#FDE68A"]} style={styles.classesIntro}>
-            <Text style={styles.classesIntroTitle}>How classes work</Text>
+            <Text style={styles.classesIntroTitle}>Listen like a real classroom</Text>
             <Text style={styles.classesIntroText}>
-              Each class teaches one math idea with pictures and simple words. Finish a class to
-              unlock games for that skill!
+              Teacher Maya speaks each lesson aloud while drawing on the whiteboard. Finish a
+              class to unlock only those games — for example, finish Addition Class to play
+              addition games only.
             </Text>
           </LinearGradient>
 
@@ -1707,7 +1739,10 @@ export default function App() {
         <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
           <View style={styles.gameHeader}>
             <Pressable
-              onPress={() => setScreen("classes")}
+              onPress={() => {
+                stopClassroomSpeech();
+                setScreen("classes");
+              }}
               style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]}
             >
               <Text style={styles.backButtonText}>← Classes</Text>
@@ -1736,21 +1771,19 @@ export default function App() {
           <LinearGradient colors={["#FFFFFF", "#FFFBEB"]} style={styles.lessonPanel}>
             {!lessonFinished ? (
               <>
-                <Text style={styles.lessonSlideEmoji}>{slide.emoji}</Text>
-                <Text style={styles.lessonSlideTitle}>{slide.title}</Text>
-                <Text style={styles.lessonSlideBody}>{slide.body}</Text>
-                <LessonVisual visual={slide.visual} />
-                <LinearGradient colors={["#DBEAFE", "#BFDBFE"]} style={styles.lessonTipBox}>
-                  <Text style={styles.lessonTipLabel}>💡 Remember</Text>
-                  <Text style={styles.lessonTipText}>{slide.tip}</Text>
-                </LinearGradient>
+                <LessonClassroom
+                  lesson={selectedLesson}
+                  slide={slide}
+                  slideIndex={lessonSlide}
+                  slideKey={`${selectedLesson.id}-${lessonSlide}-${lessonSlideKey}`}
+                />
                 <Pressable
                   onPress={nextLessonSlide}
                   style={({ pressed }) => [styles.lessonNextButton, pressed && styles.pressedButton]}
                 >
                   <LinearGradient colors={lesson.gradient} style={styles.lessonNextGradient}>
                     <Text style={styles.lessonNextText}>
-                      {isLastSlide ? "Finish Class! 🎉" : "Next →"}
+                      {isLastSlide ? "Finish Class! 🎉" : "Next Step →"}
                     </Text>
                   </LinearGradient>
                 </Pressable>
@@ -2013,6 +2046,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     fontWeight: "500"
+  },
+  playableHint: {
+    marginTop: 10,
+    marginBottom: 4,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    color: THEME.text,
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 20
   },
   gameCategorySection: {
     marginTop: 20,

@@ -13,6 +13,8 @@ export const LESSONS = [
         emoji: "🌻",
         body: "Counting means saying numbers in order to find how many things you have.",
         tip: "One, two, three… each thing gets one number!",
+        narration:
+          "Hello boys and girls! Welcome to counting class. Counting means saying numbers in order, one, two, three, to find how many things you have. Watch the whiteboard as I draw each object.",
         visual: { type: "dots", count: 5, item: "🌸" }
       },
       {
@@ -45,13 +47,15 @@ export const LESSONS = [
     subtitle: "Learn what plus (+) means!",
     emoji: "➕",
     gradient: ["#86EFAC", "#22C55E"],
-    unlockAfter: null,
+    unlockAfter: "counting",
     slides: [
       {
         title: "What is Addition?",
         emoji: "🍎",
         body: "Addition means putting groups together to find the total — how many altogether.",
         tip: "We write it with the + sign, which means “and”.",
+        narration:
+          "Hello! Today we learn addition. Addition means putting groups together to find how many altogether. Look at the whiteboard. We use the plus sign, and it means and.",
         visual: { type: "groups", left: 2, right: 1, symbol: "+", item: "🍎" }
       },
       {
@@ -293,4 +297,8 @@ export function completeLesson(progress, lessonId) {
 
 export function getCompletedLessonCount(progress) {
   return LESSONS.filter((lesson) => isLessonComplete(progress, lesson.id)).length;
+}
+
+export function getLessonForGameCategory(categoryId) {
+  return getLessonForCategory(categoryId);
 }

@@ -1,6 +1,9 @@
 import {
+  CATEGORY_LESSON,
   getLessonForCategory,
-  isLessonComplete
+  getLessonUnlockHint,
+  isLessonComplete,
+  isLessonUnlocked
 } from "./lessons";
 
 export const PROGRESS_KEY = "@mathGarden/progress";
@@ -15,23 +18,7 @@ export const LEARNING_PATH = [
   { id: "division", label: "Divide", emoji: "➗", color: "#F97316" }
 ];
 
-const ALWAYS_OPEN = new Set(["counting", "addition"]);
-
-const CATEGORY_REQUIRES = {
-  subtraction: "addition",
-  multiplication: "subtraction",
-  division: "multiplication",
-  patterns: "division",
-  mixed: "division",
-  challenge: "division"
-};
-
-const CATEGORY_NEEDS_LESSON = new Set([
-  "addition",
-  "subtraction",
-  "multiplication",
-  "division"
-]);
+const BONUS_CATEGORIES = new Set(["patterns", "mixed", "challenge"]);
 
 function emptyGameProgress() {
   return { tier: 1, maxLevel: 1, maxTier: 1, levels: {} };
@@ -104,71 +91,54 @@ function categoryHasMinProgress(progress, categoryId, minLevel, games) {
     .some((game) => getHighestPassedLevel(progress, game.id, 1) >= minLevel);
 }
 
-function categoryNeedsLessonComplete(categoryId, progress) {
-  if (CATEGORY_NEEDS_LESSON.has(categoryId)) {
-    const lesson = getLessonForCategory(categoryId);
-    if (lesson && !isLessonComplete(progress, lesson.id)) {
-      return false;
-    }
-  }
-
-  if (["patterns", "mixed", "challenge"].includes(categoryId)) {
+export function isCategoryLessonComplete(progress, categoryId) {
+  if (BONUS_CATEGORIES.has(categoryId)) {
     return isLessonComplete(progress, "division");
   }
 
-  return true;
-}
-
-export function isCategoryUnlocked(progress, categoryId, games) {
-  if (!categoryNeedsLessonComplete(categoryId, progress)) {
+  const lessonId = CATEGORY_LESSON[categoryId];
+  if (!lessonId) {
     return false;
   }
 
-  if (ALWAYS_OPEN.has(categoryId)) {
-    return true;
-  }
-
-  const requiredCategory = CATEGORY_REQUIRES[categoryId];
-  if (!requiredCategory) {
-    return true;
-  }
-
-  return categoryHasMinProgress(progress, requiredCategory, MIN_LEVEL_FOR_NEXT_CATEGORY, games);
+  return isLessonComplete(progress, lessonId);
 }
 
-export function isGameUnlocked(progress, game, games) {
-  return isCategoryUnlocked(progress, game.category, games);
+export function isCategoryUnlocked(progress, categoryId) {
+  return isCategoryLessonComplete(progress, categoryId);
+}
+
+export function isGameUnlocked(progress, game) {
+  return isCategoryUnlocked(progress, game.category);
 }
 
 export function getCategoryUnlockHint(categoryId, progress) {
-  if (CATEGORY_NEEDS_LESSON.has(categoryId)) {
-    const lesson = getLessonForCategory(categoryId);
-    if (lesson && !isLessonComplete(progress, lesson.id)) {
-      return `Take ${lesson.title} first! 📚`;
+  if (BONUS_CATEGORIES.has(categoryId)) {
+    if (!isLessonComplete(progress, "division")) {
+      return "Listen to Division Class first! 🎧";
     }
-  }
-
-  if (["patterns", "mixed", "challenge"].includes(categoryId) && !isLessonComplete(progress, "division")) {
-    return "Take Division Class first! 📚";
-  }
-
-  const requiredCategory = CATEGORY_REQUIRES[categoryId];
-  if (!requiredCategory || ALWAYS_OPEN.has(categoryId)) {
     return null;
   }
 
-  const labels = {
-    addition: "addition",
-    subtraction: "subtraction",
-    multiplication: "multiplication",
-    division: "division"
-  };
+  const lessonId = CATEGORY_LESSON[categoryId];
+  if (!lessonId) {
+    return "Complete a math class first! 📚";
+  }
 
-  return `Pass Level ${MIN_LEVEL_FOR_NEXT_CATEGORY} in a ${labels[requiredCategory] || requiredCategory} game first!`;
+  if (!isLessonUnlocked(progress, lessonId)) {
+    return getLessonUnlockHint(lessonId);
+  }
+
+  if (!isLessonComplete(progress, lessonId)) {
+    const lesson = getLessonForCategory(categoryId);
+    return `Finish ${lesson?.title || "the class"} to play these games! 🎧`;
+  }
+
+  return null;
 }
 
 export function getPathStepStatus(progress, stepId, games) {
-  const unlocked = isCategoryUnlocked(progress, stepId, games);
+  const unlocked = isLessonComplete(progress, stepId);
   const mastered = categoryHasMinProgress(progress, stepId, LEVELS_PER_TIER, games);
   const started = categoryHasMinProgress(progress, stepId, 1, games);
   return { unlocked, started, mastered };
@@ -266,4 +236,17 @@ export function didPassLevel(score) {
 
 export function getTierLabel(tier) {
   return tier === 2 ? "Advanced" : "Starter";
+}
+
+export function getPlayableCategoryLabels(progress) {
+  const labels = [];
+  if (isCategoryUnlocked(progress, "counting")) labels.push("Counting");
+  if (isCategoryUnlocked(progress, "addition")) labels.push("Addition");
+  if (isCategoryUnlocked(progress, "subtraction")) labels.push("Subtraction");
+  if (isCategoryUnlocked(progress, "multiplication")) labels.push("Multiplication");
+  if (isCategoryUnlocked(progress, "division")) labels.push("Division");
+  if (isCategoryUnlocked(progress, "patterns")) labels.push("Patterns");
+  if (isCategoryUnlocked(progress, "mixed")) labels.push("Mixed");
+  if (isCategoryUnlocked(progress, "challenge")) labels.push("Challenge");
+  return labels;
 }

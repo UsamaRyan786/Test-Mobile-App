@@ -4,19 +4,28 @@ A colorful Expo React Native app that helps children practice basic math through
 
 Also published in Expo as **Number Match Garden** (`number-match-garden`).
 
-## Math Classes (learn before you play)
+## Math Classes (listen & watch — like a real classroom)
 
-Before jumping into games, kids can take **short teaching classes** with pictures, stories, and simple examples:
+Before jumping into games, kids join **Teacher Maya** for short spoken lessons with an animated **whiteboard**:
 
 | Class | What it teaches | Unlocks |
 |-------|-----------------|---------|
-| 🔢 **Counting Class** | Count objects one by one | Optional intro (counting games always open) |
-| ➕ **Addition Class** | Putting groups together (+) | **Addition games** |
-| ➖ **Subtraction Class** | Taking away (−) | **Subtraction games** (after Addition Class) |
-| ✖️ **Multiplication Class** | Equal groups (×) | **Multiplication games** (after Subtraction Class) |
-| ➗ **Division Class** | Sharing equally (÷) | **Division games** + Patterns / Mixed / Challenge |
+| 🔢 **Counting Class** | Count objects one by one (spoken + whiteboard) | **Counting games only** |
+| ➕ **Addition Class** | Putting groups together (+) | **Addition games only** |
+| ➖ **Subtraction Class** | Taking away (−) | **Subtraction games only** |
+| ✖️ **Multiplication Class** | Equal groups (×) | **Multiplication games only** |
+| ➗ **Division Class** | Sharing equally (÷) | **Division, Patterns, Mixed & Challenge games** |
 
-Each class has **4–5 kid-friendly slides** with visual examples (apples, cookies, groups, equations). Tap **Start Class** on the home screen to open the class list. Finish a class to unlock games for that skill.
+### Classroom experience
+
+- **Teacher Maya** speaks each slide aloud (text-to-speech via `expo-speech`)
+- **Whiteboard** animations draw circles, groups, and equations step by step
+- Tap **🔊 Again** to replay the teacher
+- Captions show the same words on screen while kids listen
+
+**Strict game rules:** You can **only play games for classes you have finished**. If you only completed Addition Class, only addition games appear on the home screen. Other categories stay locked with a hint until their class is done.
+
+Class order: Counting → Addition → Subtraction → Multiplication → Division.
 
 Class progress is saved in `@mathGarden/progress` under `lessons`.
 
@@ -26,13 +35,13 @@ Math Garden uses a **step-by-step learning path** so kids master each operation 
 
 | Step | Unlocks when |
 |------|----------------|
-| ➕ **Plus** (Addition) | Complete **Addition Class**, then play games |
-| ➖ **Minus** (Subtraction) | Complete **Subtraction Class** + pass Level 3 in an addition game |
-| ✖️ **Times** (Multiplication) | Complete **Multiplication Class** + pass Level 3 in a subtraction game |
-| ➗ **Divide** (Division) | Complete **Division Class** + pass Level 3 in a multiplication game |
-| 🔮 Patterns / 🎲 Mixed / 🏆 Challenge | Complete **Division Class** + pass Level 3 in a division game |
+| ➕ **Plus** (Addition) | Complete **Addition Class** |
+| ➖ **Minus** (Subtraction) | Complete **Subtraction Class** |
+| ✖️ **Times** (Multiplication) | Complete **Multiplication Class** |
+| ➗ **Divide** (Division) | Complete **Division Class** |
+| 🔮 Patterns / 🎲 Mixed / 🏆 Challenge | Complete **Division Class** |
 
-**Counting** games are always available as a gentle starting point.
+**Counting** games unlock after **Counting Class**. You only see game categories on the home screen after finishing the matching class.
 
 ### 10 levels per game (2 tiers)
 
@@ -50,7 +59,7 @@ Every game has **10 levels** in two tiers:
 
 ## Features
 
-- **Math Classes** — 5 teaching classes with visuals before games unlock
+- **Math Classes** — Teacher Maya speaks lessons with whiteboard animations (`expo-speech`)
 - **71 math mini-games** covering counting, addition, subtraction, multiplication, division, mixed arithmetic, patterns, and challenges
 - **12 questions per game** with 4 multiple-choice answers each
 - **Star ratings** (0–3 stars) based on final score
@@ -217,6 +226,7 @@ The finish screen shows up to 3 new badges at a time (with a count if more were 
 | React 19 | UI framework |
 | React Native 0.81 | Mobile components |
 | `expo-linear-gradient` | Gradient backgrounds and cards |
+| `expo-speech` | Spoken math classes (Teacher Maya) |
 | `@react-native-async-storage/async-storage` | High scores, coins, and badges |
 
 ## Prerequisites
@@ -280,6 +290,8 @@ npx expo start --web
 ├── App.js              # Main app: UI, scores, rewards, screens
 ├── games.js            # 71 games, round generators, menu categories
 ├── lessons.js          # Math Classes content and lesson progress helpers
+├── LessonClassroom.js  # Teacher + whiteboard UI with spoken lessons
+├── lessonSpeech.js     # Text-to-speech narration helpers
 ├── progression.js      # Learning path, level unlocks, difficulty scaling
 ├── badges.js           # Badge definitions and unlock logic (457 badges)
 ├── app.json            # Expo config (name, slug, SDK, splash)
