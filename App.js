@@ -51,6 +51,16 @@ import {
   didPassLevel,
   getTierLabel
 } from "./progression";
+import {
+  LESSONS,
+  isLessonComplete,
+  isLessonUnlocked,
+  getLessonUnlockHint,
+  getLessonProgress,
+  recordLessonSlide,
+  completeLesson,
+  getCompletedLessonCount
+} from "./lessons";
 
 const MAX_ROUNDS = 12;
 const HIGH_SCORES_KEY = "@mathGarden/highScores";
@@ -606,12 +616,264 @@ function BadgeCard({ badge, unlocked, index }) {
   );
 }
 
+function LessonVisual({ visual }) {
+  if (!visual) {
+    return null;
+  }
+
+  if (visual.type === "dots") {
+    return (
+      <View style={styles.lessonVisualBox}>
+        <View style={styles.lessonDotsRow}>
+          {Array.from({ length: visual.count }, (_, index) => (
+            <Text key={index} style={styles.lessonVisualItem}>
+              {visual.item}
+            </Text>
+          ))}
+        </View>
+        <Text style={styles.lessonVisualCaption}>Count: {visual.count}</Text>
+      </View>
+    );
+  }
+
+  if (visual.type === "match") {
+    return (
+      <View style={styles.lessonVisualBox}>
+        <View style={styles.lessonDotsRow}>
+          {Array.from({ length: visual.count }, (_, index) => (
+            <Text key={index} style={styles.lessonVisualItem}>
+              {visual.item}
+            </Text>
+          ))}
+        </View>
+        <Text style={styles.lessonEquationText}>
+          {visual.count} {visual.item} = {visual.count}
+        </Text>
+      </View>
+    );
+  }
+
+  if (visual.type === "groups") {
+    const total = visual.left + visual.right;
+    return (
+      <View style={styles.lessonVisualBox}>
+        <View style={styles.lessonGroupsRow}>
+          <View style={styles.lessonGroup}>
+            {Array.from({ length: visual.left }, (_, index) => (
+              <Text key={`l-${index}`} style={styles.lessonVisualItem}>
+                {visual.item}
+              </Text>
+            ))}
+          </View>
+          <Text style={styles.lessonSymbol}>{visual.symbol}</Text>
+          <View style={styles.lessonGroup}>
+            {Array.from({ length: visual.right }, (_, index) => (
+              <Text key={`r-${index}`} style={styles.lessonVisualItem}>
+                {visual.item}
+              </Text>
+            ))}
+          </View>
+          <Text style={styles.lessonSymbol}>=</Text>
+          <View style={styles.lessonGroup}>
+            {Array.from({ length: total }, (_, index) => (
+              <Text key={`t-${index}`} style={styles.lessonVisualItem}>
+                {visual.item}
+              </Text>
+            ))}
+          </View>
+        </View>
+        <Text style={styles.lessonEquationText}>
+          {visual.left} {visual.symbol} {visual.right} = {total}
+        </Text>
+      </View>
+    );
+  }
+
+  if (visual.type === "equation") {
+    return (
+      <View style={styles.lessonVisualBox}>
+        <View style={styles.lessonEquationRow}>
+          {visual.parts.map((part, index) => (
+            <Text
+              key={`${part}-${index}`}
+              style={[
+                styles.lessonEquationPart,
+                part === visual.highlight && styles.lessonEquationHighlight
+              ]}
+            >
+              {part}
+            </Text>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  if (visual.type === "takeaway") {
+    const left = visual.start - visual.remove;
+    return (
+      <View style={styles.lessonVisualBox}>
+        <View style={styles.lessonGroupsRow}>
+          <View style={styles.lessonGroup}>
+            {Array.from({ length: visual.start }, (_, index) => (
+              <Text
+                key={`s-${index}`}
+                style={[styles.lessonVisualItem, index >= left && styles.lessonVisualFade]}
+              >
+                {visual.item}
+              </Text>
+            ))}
+          </View>
+        </View>
+        <Text style={styles.lessonEquationText}>
+          {visual.start} − {visual.remove} = {left}
+        </Text>
+      </View>
+    );
+  }
+
+  if (visual.type === "groupsRepeat") {
+    const total = visual.groups * visual.perGroup;
+    return (
+      <View style={styles.lessonVisualBox}>
+        <View style={styles.lessonRepeatGrid}>
+          {Array.from({ length: visual.groups }, (_, groupIndex) => (
+            <View key={groupIndex} style={styles.lessonRepeatGroup}>
+              {Array.from({ length: visual.perGroup }, (_, itemIndex) => (
+                <Text key={itemIndex} style={styles.lessonVisualItemSmall}>
+                  {visual.item}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </View>
+        <Text style={styles.lessonEquationText}>
+          {visual.perGroup} × {visual.groups} = {total}
+        </Text>
+      </View>
+    );
+  }
+
+  if (visual.type === "share") {
+    const each = visual.total / visual.groups;
+    return (
+      <View style={styles.lessonVisualBox}>
+        <View style={styles.lessonRepeatGrid}>
+          {Array.from({ length: visual.groups }, (_, groupIndex) => (
+            <View key={groupIndex} style={styles.lessonShareGroup}>
+              <Text style={styles.lessonShareLabel}>Friend {groupIndex + 1}</Text>
+              {Array.from({ length: each }, (_, itemIndex) => (
+                <Text key={itemIndex} style={styles.lessonVisualItemSmall}>
+                  {visual.item}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </View>
+        <Text style={styles.lessonEquationText}>
+          {visual.total} ÷ {visual.groups} = {each}
+        </Text>
+      </View>
+    );
+  }
+
+  if (visual.type === "skip") {
+    const values = Array.from({ length: visual.times }, (_, index) => (index + 1) * visual.step);
+    return (
+      <View style={styles.lessonVisualBox}>
+        <View style={styles.lessonSkipRow}>
+          {values.map((value) => (
+            <View key={value} style={styles.lessonSkipBubble}>
+              <Text style={styles.lessonSkipNumber}>{value}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={styles.lessonEquationText}>
+          Count by {visual.step}s: {values.join(", ")}
+        </Text>
+      </View>
+    );
+  }
+
+  if (visual.type === "celebrate") {
+    return (
+      <View style={styles.lessonCelebrateBox}>
+        <Text style={styles.lessonCelebrateEmoji}>{visual.emoji}</Text>
+      </View>
+    );
+  }
+
+  return null;
+}
+
+function ClassCard({ lesson, progress, index, onPress }) {
+  const unlocked = isLessonUnlocked(progress, lesson.id);
+  const completed = isLessonComplete(progress, lesson.id);
+  const hint = getLessonUnlockHint(lesson.id);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    slideAnim.setValue(0);
+    Animated.spring(slideAnim, {
+      toValue: 1,
+      delay: index * 100,
+      friction: 7,
+      tension: 50,
+      useNativeDriver: true
+    }).start();
+  }, [index, slideAnim]);
+
+  const entranceStyle = {
+    opacity: slideAnim,
+    transform: [
+      {
+        translateY: slideAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [30, 0]
+        })
+      }
+    ]
+  };
+
+  return (
+    <Animated.View style={entranceStyle}>
+      <Pressable
+        onPress={unlocked ? onPress : undefined}
+        style={({ pressed }) => [pressed && unlocked && styles.pressedButton]}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !unlocked }}
+      >
+        <LinearGradient
+          colors={unlocked ? lesson.gradient : ["#E2E8F0", "#CBD5E1"]}
+          style={styles.classCard}
+        >
+          {!unlocked ? (
+            <View style={styles.classCardLock}>
+              <Text style={styles.classCardLockEmoji}>🔒</Text>
+              <Text style={styles.classCardLockText}>{hint}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.classCardEmoji}>{lesson.emoji}</Text>
+          <View style={styles.classCardBody}>
+            <Text style={styles.classCardTitle}>{lesson.title}</Text>
+            <Text style={styles.classCardSubtitle}>{lesson.subtitle}</Text>
+            <Text style={styles.classCardMeta}>
+              {lesson.slides.length} short lessons ·{" "}
+              {completed ? "✅ Completed" : unlocked ? "Tap to start →" : "Locked"}
+            </Text>
+          </View>
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 function LearningPathBar({ progress }) {
   return (
     <LinearGradient colors={["#ECFDF5", "#D1FAE5"]} style={styles.learningPathBar}>
       <Text style={styles.learningPathTitle}>🛤️ Your Learning Path</Text>
       <Text style={styles.learningPathSubtitle}>
-        Plus → Minus → Times → Divide · Pass Level {MIN_LEVEL_FOR_NEXT_CATEGORY} to unlock the next step
+        Take each class first · Pass Level {MIN_LEVEL_FOR_NEXT_CATEGORY} in games to unlock the next step
       </Text>
       <View style={styles.learningPathRow}>
         {LEARNING_PATH.map((step, index) => {
@@ -674,6 +936,9 @@ export default function App() {
   const [progress, setProgress] = useState(createDefaultProgress());
   const [selectedTier, setSelectedTier] = useState(1);
   const [selectedLevel, setSelectedLevel] = useState(1);
+  const [selectedLesson, setSelectedLesson] = useState(LESSONS[1]);
+  const [lessonSlide, setLessonSlide] = useState(0);
+  const [lessonFinished, setLessonFinished] = useState(false);
 
   const currentHighScore = highScores[selectedGame.id]?.best ?? 0;
   const unlockedBadgeCount = Object.keys(rewards.badges).length;
@@ -832,6 +1097,44 @@ export default function App() {
     setScreen("dashboard");
   }
 
+  function openClasses() {
+    setScreen("classes");
+  }
+
+  function openLesson(lesson) {
+    if (!isLessonUnlocked(progress, lesson.id)) {
+      return;
+    }
+    setSelectedLesson(lesson);
+    setLessonSlide(getLessonProgress(progress, lesson.id).slide || 0);
+    setLessonFinished(false);
+    setScreen("lesson");
+  }
+
+  function nextLessonSlide() {
+    const lesson = selectedLesson;
+    const isLast = lessonSlide >= lesson.slides.length - 1;
+
+    if (isLast) {
+      const updated = completeLesson(progress, lesson.id);
+      setProgress(updated);
+      saveProgressData(updated);
+      setLessonFinished(true);
+      return;
+    }
+
+    const nextSlide = lessonSlide + 1;
+    const updated = recordLessonSlide(progress, lesson.id, nextSlide);
+    setProgress(updated);
+    saveProgressData(updated);
+    setLessonSlide(nextSlide);
+  }
+
+  function replayLesson() {
+    setLessonSlide(0);
+    setLessonFinished(false);
+  }
+
   async function recordGameScore(gameId, score) {
     const record = await saveHighScore(gameId, score);
     setHighScores((prev) => ({ ...prev, [gameId]: record }));
@@ -959,11 +1262,27 @@ export default function App() {
             </View>
           </LinearGradient>
 
+          <LinearGradient colors={["#EEF2FF", "#E0E7FF"]} style={styles.classesPromo}>
+            <View style={styles.classesPromoCopy}>
+              <Text style={styles.classesPromoTitle}>📚 Math Classes</Text>
+              <Text style={styles.classesPromoText}>
+                Learn what + − × ÷ mean before you play! {getCompletedLessonCount(progress)}/
+                {LESSONS.length} completed.
+              </Text>
+            </View>
+            <Pressable
+              onPress={openClasses}
+              style={({ pressed }) => [styles.classesPromoButton, pressed && styles.pressedButton]}
+            >
+              <Text style={styles.classesPromoButtonText}>Start Class →</Text>
+            </Pressable>
+          </LinearGradient>
+
           <View style={styles.sectionHeader}>
             <Text style={styles.eyebrow}>✦ Pick Your Adventure ✦</Text>
             <Animated.Text style={[styles.title, titleStyle]}>Which game shall we play?</Animated.Text>
             <Text style={styles.subtitle}>
-              {GAMES.length} games with 10 levels each — learn Plus, then Minus, Times, and Divide!
+              Take a class first, then play {GAMES.length} games with 10 levels each!
             </Text>
           </View>
 
@@ -992,7 +1311,7 @@ export default function App() {
 
           {getGamesByCategory().map((section) => {
             const categoryOpen = isCategoryUnlocked(progress, section.id, GAMES);
-            const unlockHint = getCategoryUnlockHint(section.id);
+            const unlockHint = getCategoryUnlockHint(section.id, progress);
 
             return (
               <View key={section.id} style={styles.gameCategorySection}>
@@ -1337,6 +1656,135 @@ export default function App() {
     );
   }
 
+  function renderClasses() {
+    return (
+      <ScreenShell>
+        <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+          <View style={styles.gameHeader}>
+            <Pressable
+              onPress={backToMenu}
+              style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]}
+            >
+              <Text style={styles.backButtonText}>← Home</Text>
+            </Pressable>
+            <View style={styles.gameTitleCopy}>
+              <Text style={styles.gameTitle}>📚 Math Classes</Text>
+              <Text style={styles.gameLevelBand}>Learn first, then play games!</Text>
+            </View>
+          </View>
+
+          <LinearGradient colors={["#FEF3C7", "#FDE68A"]} style={styles.classesIntro}>
+            <Text style={styles.classesIntroTitle}>How classes work</Text>
+            <Text style={styles.classesIntroText}>
+              Each class teaches one math idea with pictures and simple words. Finish a class to
+              unlock games for that skill!
+            </Text>
+          </LinearGradient>
+
+          <View style={styles.classList}>
+            {LESSONS.map((lesson, index) => (
+              <ClassCard
+                key={lesson.id}
+                lesson={lesson}
+                progress={progress}
+                index={index}
+                onPress={() => openLesson(lesson)}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      </ScreenShell>
+    );
+  }
+
+  function renderLesson() {
+    const lesson = selectedLesson;
+    const slide = lesson.slides[lessonSlide];
+    const isLastSlide = lessonSlide >= lesson.slides.length - 1;
+
+    return (
+      <ScreenShell>
+        <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+          <View style={styles.gameHeader}>
+            <Pressable
+              onPress={() => setScreen("classes")}
+              style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]}
+            >
+              <Text style={styles.backButtonText}>← Classes</Text>
+            </Pressable>
+            <View style={styles.gameTitleCopy}>
+              <Text style={styles.gameTitle}>{lesson.title}</Text>
+              <Text style={styles.gameLevelBand}>
+                Step {lessonSlide + 1} of {lesson.slides.length}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.lessonProgressRow}>
+            {lesson.slides.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.lessonProgressDot,
+                  index <= lessonSlide && styles.lessonProgressDotActive,
+                  index === lessonSlide && styles.lessonProgressDotCurrent
+                ]}
+              />
+            ))}
+          </View>
+
+          <LinearGradient colors={["#FFFFFF", "#FFFBEB"]} style={styles.lessonPanel}>
+            {!lessonFinished ? (
+              <>
+                <Text style={styles.lessonSlideEmoji}>{slide.emoji}</Text>
+                <Text style={styles.lessonSlideTitle}>{slide.title}</Text>
+                <Text style={styles.lessonSlideBody}>{slide.body}</Text>
+                <LessonVisual visual={slide.visual} />
+                <LinearGradient colors={["#DBEAFE", "#BFDBFE"]} style={styles.lessonTipBox}>
+                  <Text style={styles.lessonTipLabel}>💡 Remember</Text>
+                  <Text style={styles.lessonTipText}>{slide.tip}</Text>
+                </LinearGradient>
+                <Pressable
+                  onPress={nextLessonSlide}
+                  style={({ pressed }) => [styles.lessonNextButton, pressed && styles.pressedButton]}
+                >
+                  <LinearGradient colors={lesson.gradient} style={styles.lessonNextGradient}>
+                    <Text style={styles.lessonNextText}>
+                      {isLastSlide ? "Finish Class! 🎉" : "Next →"}
+                    </Text>
+                  </LinearGradient>
+                </Pressable>
+              </>
+            ) : (
+              <View style={styles.lessonFinishBlock}>
+                <Text style={styles.lessonFinishEmoji}>🎓</Text>
+                <Text style={styles.lessonFinishTitle}>Class Complete!</Text>
+                <Text style={styles.lessonFinishBody}>
+                  You finished {lesson.title}. {lesson.category} games are now unlocked — go
+                  practice!
+                </Text>
+                <Pressable
+                  onPress={backToMenu}
+                  style={({ pressed }) => [styles.lessonNextButton, pressed && styles.pressedButton]}
+                >
+                  <LinearGradient colors={lesson.gradient} style={styles.lessonNextGradient}>
+                    <Text style={styles.lessonNextText}>Play Games 🎮</Text>
+                  </LinearGradient>
+                </Pressable>
+                <Pressable
+                  onPress={replayLesson}
+                  style={({ pressed }) => [styles.levelsLinkButton, pressed && styles.pressedButton]}
+                >
+                  <Text style={styles.levelsLinkText}>↺ Watch class again</Text>
+                </Pressable>
+              </View>
+            )}
+          </LinearGradient>
+        </ScrollView>
+      </ScreenShell>
+    );
+  }
+
   function renderDashboard() {
     const { records, totalPlays, totalBest, perfectGames, topRecord } = getDashboardStats(highScores);
     const sortedRecords = [...records].sort((a, b) => b.record.best - a.record.best);
@@ -1412,6 +1860,12 @@ export default function App() {
 
   if (screen === "dashboard") {
     return renderDashboard();
+  }
+  if (screen === "classes") {
+    return renderClasses();
+  }
+  if (screen === "lesson") {
+    return renderLesson();
   }
   if (screen === "levels") {
     return renderLevelSelect();
@@ -1643,6 +2097,332 @@ const styles = StyleSheet.create({
     color: THEME.textSoft,
     fontSize: 16,
     fontWeight: "800"
+  },
+  learningPathArrow: {
+    color: THEME.textSoft,
+    fontSize: 16,
+    fontWeight: "800"
+  },
+  classesPromo: {
+    marginTop: 8,
+    padding: 18,
+    borderRadius: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.8)"
+  },
+  classesPromoCopy: {
+    flex: 1
+  },
+  classesPromoTitle: {
+    color: THEME.text,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  classesPromoText: {
+    marginTop: 4,
+    color: THEME.textSoft,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600"
+  },
+  classesPromoButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "#6366F1"
+  },
+  classesPromoButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  classesIntro: {
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 16
+  },
+  classesIntroTitle: {
+    color: THEME.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  classesIntroText: {
+    marginTop: 6,
+    color: THEME.textSoft,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600"
+  },
+  classList: {
+    gap: 14
+  },
+  classCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 18,
+    borderRadius: 22,
+    gap: 14,
+    overflow: "hidden",
+    minHeight: 110
+  },
+  classCardLock: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(30,58,95,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+    zIndex: 2
+  },
+  classCardLockEmoji: {
+    fontSize: 24
+  },
+  classCardLockText: {
+    marginTop: 6,
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  classCardEmoji: {
+    fontSize: 40
+  },
+  classCardBody: {
+    flex: 1
+  },
+  classCardTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  classCardSubtitle: {
+    marginTop: 4,
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
+    fontWeight: "600"
+  },
+  classCardMeta: {
+    marginTop: 8,
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  lessonProgressRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 14,
+    justifyContent: "center"
+  },
+  lessonProgressDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#E2E8F0"
+  },
+  lessonProgressDotActive: {
+    backgroundColor: "#93C5FD"
+  },
+  lessonProgressDotCurrent: {
+    width: 22,
+    backgroundColor: "#3B82F6"
+  },
+  lessonPanel: {
+    padding: 22,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    gap: 14
+  },
+  lessonSlideEmoji: {
+    fontSize: 48,
+    textAlign: "center"
+  },
+  lessonSlideTitle: {
+    color: THEME.text,
+    fontSize: 26,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  lessonSlideBody: {
+    color: THEME.textSoft,
+    fontSize: 17,
+    lineHeight: 26,
+    fontWeight: "600",
+    textAlign: "center"
+  },
+  lessonVisualBox: {
+    marginTop: 4,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    gap: 10
+  },
+  lessonDotsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8
+  },
+  lessonVisualItem: {
+    fontSize: 28
+  },
+  lessonVisualItemSmall: {
+    fontSize: 20
+  },
+  lessonVisualFade: {
+    opacity: 0.25
+  },
+  lessonVisualCaption: {
+    color: THEME.text,
+    fontSize: 16,
+    fontWeight: "800"
+  },
+  lessonGroupsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8
+  },
+  lessonGroup: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF"
+  },
+  lessonSymbol: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: THEME.text
+  },
+  lessonEquationRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10
+  },
+  lessonEquationPart: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: THEME.text
+  },
+  lessonEquationHighlight: {
+    color: "#059669"
+  },
+  lessonEquationText: {
+    color: THEME.text,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  lessonRepeatGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10
+  },
+  lessonRepeatGroup: {
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    maxWidth: 120,
+    justifyContent: "center"
+  },
+  lessonShareGroup: {
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    gap: 4,
+    minWidth: 72
+  },
+  lessonShareLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: THEME.textSoft
+  },
+  lessonSkipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8
+  },
+  lessonSkipBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#DBEAFE",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  lessonSkipNumber: {
+    color: THEME.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  lessonCelebrateBox: {
+    paddingVertical: 20,
+    alignItems: "center"
+  },
+  lessonCelebrateEmoji: {
+    fontSize: 72
+  },
+  lessonTipBox: {
+    padding: 14,
+    borderRadius: 16
+  },
+  lessonTipLabel: {
+    color: THEME.text,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  lessonTipText: {
+    marginTop: 4,
+    color: THEME.textSoft,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: "700"
+  },
+  lessonNextButton: {
+    marginTop: 8,
+    borderRadius: 22,
+    overflow: "hidden"
+  },
+  lessonNextGradient: {
+    paddingVertical: 16,
+    alignItems: "center"
+  },
+  lessonNextText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  lessonFinishBlock: {
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12
+  },
+  lessonFinishEmoji: {
+    fontSize: 64
+  },
+  lessonFinishTitle: {
+    color: THEME.text,
+    fontSize: 28,
+    fontWeight: "900"
+  },
+  lessonFinishBody: {
+    color: THEME.textSoft,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600",
+    textAlign: "center"
   },
   gameCardLockedWrap: {
     opacity: 0.72

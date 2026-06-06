@@ -4,17 +4,33 @@ A colorful Expo React Native app that helps children practice basic math through
 
 Also published in Expo as **Number Match Garden** (`number-match-garden`).
 
+## Math Classes (learn before you play)
+
+Before jumping into games, kids can take **short teaching classes** with pictures, stories, and simple examples:
+
+| Class | What it teaches | Unlocks |
+|-------|-----------------|---------|
+| 🔢 **Counting Class** | Count objects one by one | Optional intro (counting games always open) |
+| ➕ **Addition Class** | Putting groups together (+) | **Addition games** |
+| ➖ **Subtraction Class** | Taking away (−) | **Subtraction games** (after Addition Class) |
+| ✖️ **Multiplication Class** | Equal groups (×) | **Multiplication games** (after Subtraction Class) |
+| ➗ **Division Class** | Sharing equally (÷) | **Division games** + Patterns / Mixed / Challenge |
+
+Each class has **4–5 kid-friendly slides** with visual examples (apples, cookies, groups, equations). Tap **Start Class** on the home screen to open the class list. Finish a class to unlock games for that skill.
+
+Class progress is saved in `@mathGarden/progress` under `lessons`.
+
 ## Learning path & levels
 
 Math Garden uses a **step-by-step learning path** so kids master each operation before moving on:
 
 | Step | Unlocks when |
 |------|----------------|
-| ➕ **Plus** (Addition) | Always open |
-| ➖ **Minus** (Subtraction) | Pass **Level 3** in any addition game |
-| ✖️ **Times** (Multiplication) | Pass **Level 3** in any subtraction game |
-| ➗ **Divide** (Division) | Pass **Level 3** in any multiplication game |
-| 🔮 Patterns / 🎲 Mixed / 🏆 Challenge | Pass **Level 3** in any division game |
+| ➕ **Plus** (Addition) | Complete **Addition Class**, then play games |
+| ➖ **Minus** (Subtraction) | Complete **Subtraction Class** + pass Level 3 in an addition game |
+| ✖️ **Times** (Multiplication) | Complete **Multiplication Class** + pass Level 3 in a subtraction game |
+| ➗ **Divide** (Division) | Complete **Division Class** + pass Level 3 in a multiplication game |
+| 🔮 Patterns / 🎲 Mixed / 🏆 Challenge | Complete **Division Class** + pass Level 3 in a division game |
 
 **Counting** games are always available as a gentle starting point.
 
@@ -34,6 +50,7 @@ Every game has **10 levels** in two tiers:
 
 ## Features
 
+- **Math Classes** — 5 teaching classes with visuals before games unlock
 - **71 math mini-games** covering counting, addition, subtraction, multiplication, division, mixed arithmetic, patterns, and challenges
 - **12 questions per game** with 4 multiple-choice answers each
 - **Star ratings** (0–3 stars) based on final score
@@ -262,6 +279,7 @@ npx expo start --web
 .
 ├── App.js              # Main app: UI, scores, rewards, screens
 ├── games.js            # 71 games, round generators, menu categories
+├── lessons.js          # Math Classes content and lesson progress helpers
 ├── progression.js      # Learning path, level unlocks, difficulty scaling
 ├── badges.js           # Badge definitions and unlock logic (457 badges)
 ├── app.json            # Expo config (name, slug, SDK, splash)
@@ -281,6 +299,7 @@ npx expo start --web
 | **Functions** | `loadHighScores`, `saveHighScore`, `loadRewards`, `applyRewards` |
 | **Games** | `createRound`, `getGamesByCategory`, UI helpers in `games.js` |
 | **Progression** | `getScaledConfig`, `recordLevelResult`, unlock checks in `progression.js` |
+| **Classes** | `LESSONS`, slide content, `completeLesson` in `lessons.js` |
 | **Badges** | `buildBadges`, `evaluateBadges`, `updateRewardStats` in `badges.js` |
 
 ## Configuration

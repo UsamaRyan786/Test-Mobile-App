@@ -1,3 +1,8 @@
+import {
+  getLessonForCategory,
+  isLessonComplete
+} from "./lessons";
+
 export const PROGRESS_KEY = "@mathGarden/progress";
 export const LEVELS_PER_TIER = 10;
 export const PASS_SCORE = 8;
@@ -21,12 +26,19 @@ const CATEGORY_REQUIRES = {
   challenge: "division"
 };
 
+const CATEGORY_NEEDS_LESSON = new Set([
+  "addition",
+  "subtraction",
+  "multiplication",
+  "division"
+]);
+
 function emptyGameProgress() {
   return { tier: 1, maxLevel: 1, maxTier: 1, levels: {} };
 }
 
 export function createDefaultProgress() {
-  return { games: {} };
+  return { games: {}, lessons: {} };
 }
 
 export function getGameProgress(progress, gameId) {
@@ -92,7 +104,26 @@ function categoryHasMinProgress(progress, categoryId, minLevel, games) {
     .some((game) => getHighestPassedLevel(progress, game.id, 1) >= minLevel);
 }
 
+function categoryNeedsLessonComplete(categoryId, progress) {
+  if (CATEGORY_NEEDS_LESSON.has(categoryId)) {
+    const lesson = getLessonForCategory(categoryId);
+    if (lesson && !isLessonComplete(progress, lesson.id)) {
+      return false;
+    }
+  }
+
+  if (["patterns", "mixed", "challenge"].includes(categoryId)) {
+    return isLessonComplete(progress, "division");
+  }
+
+  return true;
+}
+
 export function isCategoryUnlocked(progress, categoryId, games) {
+  if (!categoryNeedsLessonComplete(categoryId, progress)) {
+    return false;
+  }
+
   if (ALWAYS_OPEN.has(categoryId)) {
     return true;
   }
@@ -109,7 +140,18 @@ export function isGameUnlocked(progress, game, games) {
   return isCategoryUnlocked(progress, game.category, games);
 }
 
-export function getCategoryUnlockHint(categoryId) {
+export function getCategoryUnlockHint(categoryId, progress) {
+  if (CATEGORY_NEEDS_LESSON.has(categoryId)) {
+    const lesson = getLessonForCategory(categoryId);
+    if (lesson && !isLessonComplete(progress, lesson.id)) {
+      return `Take ${lesson.title} first! 📚`;
+    }
+  }
+
+  if (["patterns", "mixed", "challenge"].includes(categoryId) && !isLessonComplete(progress, "division")) {
+    return "Take Division Class first! 📚";
+  }
+
   const requiredCategory = CATEGORY_REQUIRES[categoryId];
   if (!requiredCategory || ALWAYS_OPEN.has(categoryId)) {
     return null;
