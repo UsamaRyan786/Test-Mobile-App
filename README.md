@@ -1,47 +1,53 @@
-# Math Garden
+# Math Talk
 
-A colorful Expo React Native app that helps children practice basic math through short, playful games. Each game runs for **12 questions**, tracks **high scores**, awards **garden coins** and **badges**, and uses kid-friendly visuals, animations, and encouraging feedback.
+A colorful Expo React Native app that helps children practice basic math through short, playful games. Each game runs for **12 questions**, tracks **high scores** (shown on a **5000-point** scale), awards **garden coins** and **badges**, and uses kid-friendly visuals, animations, and encouraging feedback.
 
-Also published in Expo as **Number Match Garden** (`number-match-garden`).
+Expo slug: **`number-match-garden`** (legacy package name).
 
-## Math Classes (listen & watch — like a real classroom)
+## Math Classes (listen, answer, and watch)
 
-Before jumping into games, kids join **Teacher Maya** for short spoken lessons with an animated **whiteboard**:
+Before jumping into games, kids join **Teacher Usama** for short spoken lessons with an animated **whiteboard**. Finish a class to unlock **only the games that class teaches** — not the whole category tree at once.
 
-| Class | What it teaches | Unlocks |
-|-------|-----------------|---------|
-| 🔢 **Counting Class** | Count objects one by one (spoken + whiteboard) | **Counting games only** |
-| ➕ **Addition Class** | Putting groups together (+) | **Addition games only** |
-| ➖ **Subtraction Class** | Taking away (−) | **Subtraction games only** |
-| ✖️ **Multiplication Class** | Equal groups (×) | **Multiplication games only** |
-| ➗ **Division Class** | Sharing equally (÷) | **Division, Patterns, Mixed & Challenge games** |
+| # | Class | What it teaches | Unlocks |
+|---|-------|-----------------|---------|
+| 1 | 🔢 **Counting Class** | Count objects one by one | Counting games (dots, number match) |
+| 2 | ⚖️ **Compare Class** | Bigger and smaller numbers | Compare games |
+| 3 | 🦉 **Even & Odd Class** | Even vs odd numbers | Parity games |
+| 4 | ➕ **Addition Class** | Putting groups together (+) | Addition games |
+| 5 | ➖ **Subtraction Class** | Taking away (−) | Subtraction games |
+| 6 | ✖️ **Multiplication Class** | Equal groups (×) | Multiplication games |
+| 7 | ➗ **Division Class** | Sharing equally (÷) | Division games |
+| 8 | 🔮 **Patterns Class** | Sequences and skip counting | Pattern games |
+| 9 | 🎲 **Mixed Operations Class** | + − × ÷ together | Mixed games |
+| 10 | 📐 **BODMAS Intro Class** | Order of operations overview | BODMAS Order Quiz |
+| 11 | 🪝 **Brackets Class** | Brackets `( )` first | Bracket BODMAS games |
+| 12 | ⏩ **Multiply & Divide First Class** | × and ÷ before + and − | ×÷-first BODMAS games |
+| 13 | 🏆 **Full BODMAS Class** | Full rule: brackets → ×÷ → +− | Full BODMAS games |
+| 14 | 🥇 **Challenge Class** | Expert mixed practice | Challenge games |
 
-### Classroom experience
-
-- **Teacher Maya** speaks each slide aloud (text-to-speech via `expo-speech`)
-- **Whiteboard** animations draw circles, groups, and equations step by step
-- Tap **🔊 Again** to replay the teacher
-- Captions show the same words on screen while kids listen
-
-**Strict game rules:** You can **only play games for classes you have finished**. If you only completed Addition Class, only addition games appear on the home screen. Other categories stay locked with a hint until their class is done.
-
-Class order: Counting → Addition → Subtraction → Multiplication → Division.
+**Class order:** Counting → Compare → Even & Odd → Addition → Subtraction → Multiplication → Division → Patterns → Mixed → BODMAS Intro → Brackets → ×÷ First → Full BODMAS → Challenge.
 
 Class progress is saved in `@mathGarden/progress` under `lessons`.
 
+### Classroom experience
+
+- **Teacher Usama** speaks each slide aloud (`expo-speech`) while the **whiteboard** draws circles, groups, and equations step by step
+- **Interactive counting:** Usama can pause and ask the child to say or tap the answer; correct answers get praise, wrong answers get a gentle “try again” without stopping the lesson
+- **Next Step** stays disabled until Usama finishes the current slide narration
+- Tap **🔊 Again** to replay the teacher; captions show the same words on screen
+- **Replay classes** anytime from the class list — replays do **not** change saved progress or re-lock games
+
+### Strict game unlock rules
+
+You can **only play games tied to classes you have finished**. The home screen groups games **by class**, not by loose categories. Locked sections show a hint (e.g. “Finish Compare Class first!”).
+
+Unlock logic lives in `lessonMap.js` (`resolveLessonId`, `isGameUnlockedByLesson`, `getLessonGameSections`).
+
 ## Learning path & levels
 
-Math Garden uses a **step-by-step learning path** so kids master each operation before moving on:
+### Learning path bar
 
-| Step | Unlocks when |
-|------|----------------|
-| ➕ **Plus** (Addition) | Complete **Addition Class** |
-| ➖ **Minus** (Subtraction) | Complete **Subtraction Class** |
-| ✖️ **Times** (Multiplication) | Complete **Multiplication Class** |
-| ➗ **Divide** (Division) | Complete **Division Class** |
-| 🔮 Patterns / 🎲 Mixed / 🏆 Challenge | Complete **Division Class** |
-
-**Counting** games unlock after **Counting Class**. You only see game categories on the home screen after finishing the matching class.
+The home screen shows a **step-by-step path** (Plus → Minus → Times → Divide → Patterns → Mixed → BODMAS → Challenge) that lights up as you complete the matching classes.
 
 ### 10 levels per game (2 tiers)
 
@@ -53,46 +59,60 @@ Every game has **10 levels** in two tiers:
 | 🔥 **Advanced** | Unlocks after passing all 10 Starter levels — same game, tougher numbers |
 
 - Each level is one full game session (**12 questions**).
-- **Pass a level:** score **8 or more** out of 12.
+- **Pass a level:** score **8 or more** correct out of 12 (`PASS_SCORE` in `progression.js`).
 - Passing a level unlocks the next level in that game.
 - Progress is saved locally under `@mathGarden/progress`.
 
+### Score display (5000 scale)
+
+Gameplay still uses **12 rounds**, but scores are shown on a kid-friendly **0–5000** scale (perfect run = **5000/5000**). Internal correct counts (0–12) are scaled for display only (`MAX_SCORE = 5000` in `App.js`).
+
 ### Speak your answer (voice input)
 
-During games, students can **tap the microphone** and **say the answer out loud** (e.g. “five”, “12”, “three”). The app listens and picks the matching choice. Tap buttons still work as a backup.
+During games, students can **tap the microphone** and **say the answer out loud** (e.g. “five”, “12”, “three”). The app listens and picks the matching choice. Tap buttons always work as a backup.
 
 - Uses `expo-speech-recognition` (microphone + speech recognition permissions)
-- Works best in a **development build** (`npx expo run:android` / `run:ios`); in plain Expo Go, tap-to-answer still works if voice is unavailable
+- Works in a **development build** (`npx expo run:android` / `run:ios`)
+- In **Expo Go**, voice is unavailable — tap number buttons in games and class answer panels instead
 - Supports spoken number words (one–twenty) and digits
 
 ## Features
 
-- **Speak your answer** — tap 🎤 in games and say the number (speech recognition via `expo-speech-recognition`)
-- **71 math mini-games** covering counting, addition, subtraction, multiplication, division, mixed arithmetic, patterns, and challenges
+- **Interactive Math Classes** — Teacher Usama at the whiteboard, tap/voice answers on counting slides
+- **Per-class game unlock** — finish Counting Class → counting games only; Compare Class → compare games only; and so on
+- **Class replay** — review any completed class without resetting progress
+- **Reset all progress** — home-screen button clears classes, coins, badges, scores, and locks games again (with confirmation)
+- **Speak your answer** — tap 🎤 in games (dev build) via `expo-speech-recognition`
+- **79 math mini-games** covering counting, compare, even/odd, addition, subtraction, multiplication, division, patterns, mixed, BODMAS, and challenge modes
 - **12 questions per game** with 4 multiple-choice answers each
-- **Star ratings** (0–3 stars) based on final score
+- **Star ratings** (0–3 stars) based on correct answers out of 12
 - **High score tracking** saved locally with AsyncStorage
-- **Garden coins & badges** — earn coins and unlock **457 achievement badges**
-- **Home screen summary** — coins, badge progress, top score, and per-game best scores on each card
-- **Grouped game menu** — 8 categories (Counting, Addition, Subtraction, Multiplication, Division, Patterns, Mixed, Challenge)
+- **Garden coins & badges** — earn coins and unlock **450+ achievement badges**
+- **Home screen summary** — coins, badge progress, learning path, top score, and per-game best scores on each card
+- **Grouped game menu** — sections follow the **14 Math Classes** order
 - **High Scores dashboard** — stats, sorted leaderboard, and full badge collection
 - **Animated UI** with gradients, bouncing dots, button feedback, and progress bar
-- **Portrait-only**, light theme, optimized for phones via **Expo Go**
+- **Portrait-only**, light theme; test in **Expo Go**, voice in **dev builds**
 
-## Games (71 total)
+## Games (79 total)
 
-Games are defined in `games.js` and grouped on the home screen by category:
+Games are defined in `games.js` and grouped on the home screen by **lesson** (`getLessonGameSections`):
 
 | Category | Games | Examples |
 |----------|-------|----------|
-| 🔢 **Counting & Compare** | 8 | Number Match Garden, Compare Castle, Smaller Swamp, Tiny/Big Dot Garden, Odd Owl, Even Elephant |
-| ➕ **Addition** | 13 | Addition Adventure, Make Ten/Five/Twenty, Tiny Totals, Triple Add Trail, One More Mountain |
+| 🔢 **Counting** | 3 | Number Match Garden, Tiny Dot Garden, Big Dot Field |
+| ⚖️ **Compare** | 3 | Compare Castle, Smaller Swamp, Big Compare Bay |
+| 🦉 **Even & Odd** | 2 | Odd Owl, Even Elephant |
+| ➕ **Addition** | 13 | Addition Adventure, Make Ten/Five/Twenty, Tiny Totals, Triple Add Trail |
 | ➖ **Subtraction** | 5 | Subtraction Safari, Tiny Takeaway, Ten Takeaway, Same Number Subtract |
-| ✖️ **Multiplication** | 17 | Multiplication Meadow, Times Table Tower (×2–×9 trails), Double/Triple Trouble, Square Castle |
+| ✖️ **Multiplication** | 17 | Multiplication Meadow, Times Table Tower, Times 2–9 Trails, Double/Triple Trouble |
 | ➗ **Division** | 5 | Division Desert, Half Moon Math, Divide by One, Share Six Snacks |
 | 🔮 **Patterns** | 11 | Number Ninja, Countdown Cave, Before & After, Step by 3/5, Skip Count 5s/10s |
 | 🎲 **Mixed** | 8 | Arithmetic Arena, Missing Mystery (+/−/×/÷), Plus Minus Mix, Times Divide Dash |
+| 📐 **BODMAS** | 8 | BODMAS Order Quiz, Bracket Basics, Multiply First, BODMAS Master |
 | 🏆 **Challenge** | 4 | Math Marathon, Speedy Sums, Brain Trainer, Pattern Pro |
+
+See `games.js` for the full list and round generators.
 
 ### Core games (first 15)
 
@@ -114,27 +134,18 @@ Games are defined in `games.js` and grouped on the home screen by category:
 | Countdown Cave 🦇 | `countBack` | Count backwards |
 | Before & After 🎢 | `beforeAfter` | What number comes before or after |
 
-Plus **56 more** variants (times-table trails, tiny/big difficulty tiers, missing-number specials, parity, halves, squares, and challenge modes). See `games.js` for the full list.
-
-### Arithmetic coverage
-
-| Operation | Dedicated games | Also appears in |
-|-----------|-----------------|-----------------|
-| **Addition (+)** | 13 addition games + Make Ten/Five/Twenty | Mixed, Missing Mystery, challenge modes |
-| **Subtraction (−)** | 5 subtraction games | Mixed, Missing Mystery |
-| **Multiplication (×)** | 17 multiplication games (incl. ×2–×9 trails) | Mixed, Missing Mystery |
-| **Division (÷)** | 5 division games | Mixed, Missing Mystery |
-
 ## Gameplay
 
 - Each session has **12 rounds** (`MAX_ROUNDS = 12`).
 - Every round shows **4 answer choices**.
-- The in-game panel displays **Score**, **Round**, and **Best** for the current game.
+- The in-game panel displays **Score** (0–5000 scale), **Round**, and **Best**.
 
 ### Star ratings
 
-| Stars | Score needed (out of 12) |
-|-------|--------------------------|
+Stars are based on **correct answers out of 12** (not the displayed 5000 score):
+
+| Stars | Correct answers needed (out of 12) |
+|-------|-------------------------------------|
 | ★★★ | 10 or more |
 | ★★ | 8 or more |
 | ★ | 5 or more |
@@ -147,9 +158,9 @@ For each game the app saves:
 
 | Field | Description |
 |-------|-------------|
-| `best` | Highest score out of 12 |
+| `best` | Highest correct count out of 12 (displayed as x/5000) |
 | `plays` | Times the game was completed |
-| `lastScore` | Score from the most recent run |
+| `lastScore` | Correct count from the most recent run |
 
 High scores appear on:
 
@@ -181,7 +192,7 @@ Earned at the end of each completed game:
 
 Coins are shown on the **home screen** and **dashboard**. The **finish screen** shows coins earned and any new badges.
 
-### Badges (457 total)
+### Badges (450+ total)
 
 Badges are defined in `badges.js` (built from the game list) and grouped by category on the dashboard. Locked badges appear grayed out until unlocked. Each badge also grants bonus coins.
 
@@ -195,26 +206,9 @@ Badges are defined in `badges.js` (built from the game list) and grouped by cate
 | 🏆 **Records** | Break 1, 3, 5, 10, 30+ high scores (lifetime) |
 | 🧠 **Accuracy** | 30, 60, 120, 500, 1000, 2000+ lifetime correct answers |
 | ⚡ **Session** | Score 6+, 8+, 10+, or 11+ in a single game |
-| 🎮 **Game Badges** | Per game: play 5×, play 10×, perfect 12/12, earn 3 stars (×71 games) |
+| 🎮 **Game Badges** | Per game: play 5×, play 10×, perfect 12/12, earn 3 stars |
 | 🥇 **Skills** | Per game: score 10+ in one run (Ace badges) |
 | 🎖️ **Legend** | Unlock 6, 25, 50, 75, or 100 total badges |
-
-**Starter badges** (original 12):
-
-| Badge | Unlock condition | Bonus |
-|-------|------------------|-------|
-| 🌱 First Steps | Complete your first game | 10 |
-| ⭐ Star Hunter | Earn 2 stars in any game | 15 |
-| 🌟 Super Star | Earn 3 stars in any game | 25 |
-| 💯 Perfect Run | Get 12/12 in any game | 50 |
-| 🗺️ Game Explorer | Try 4 different games | 20 |
-| 👑 Math Master | Try all 71 games | 60 |
-| 🪙 Coin Collector | Collect 100 garden coins | 20 |
-| 🔥 On Fire! | Complete 20 games total | 30 |
-| 🏆 Record Breaker | Set a new high score | 15 |
-| 🚀 Addition Fan | Play Addition Adventure 3 times | 15 |
-| 🌻 Counting Champ | Perfect score in Number Match Garden | 25 |
-| 🎖️ Badge Legend | Unlock 6 badges | 40 |
 
 The finish screen shows up to 3 new badges at a time (with a count if more were unlocked).
 
@@ -222,9 +216,12 @@ The finish screen shows up to 3 new badges at a time (with a count if more were 
 
 | Screen | Purpose |
 |--------|---------|
-| **Menu** | Pick a game by category; view coins, badges, and high score summary |
+| **Menu** | Pick a game by class section; coins, badges, learning path, reset progress |
+| **Math Classes** | Browse and start/replay Teacher Usama lessons |
+| **Classroom** | Whiteboard lesson with speech and optional tap/voice answers |
+| **Level select** | Choose Starter/Advanced tier and level 1–10 |
 | **Game** | Play 12 rounds; see score, progress, and personal best |
-| **Dashboard** | High scores, coins, and **457 badges** by category |
+| **Dashboard** | High scores, coins, and badges by category |
 
 ## Tech stack
 
@@ -234,16 +231,17 @@ The finish screen shows up to 3 new badges at a time (with a count if more were 
 | React 19 | UI framework |
 | React Native 0.81 | Mobile components |
 | `expo-linear-gradient` | Gradient backgrounds and cards |
-| `expo-speech` | Spoken math classes (Teacher Maya) |
-| `expo-speech-recognition` | Students speak answers in games |
-| `@react-native-async-storage/async-storage` | High scores, coins, and badges |
+| `expo-speech` | Spoken math classes (Teacher Usama) |
+| `expo-speech-recognition` | Students speak answers in games (dev build) |
+| `@react-native-async-storage/async-storage` | High scores, coins, badges, and lesson progress |
 
 ## Prerequisites
 
 - **Node.js** (LTS recommended)
 - **npm**
-- **Expo Go** on your phone ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779))
+- **Expo Go** on your phone ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779)) for quick testing
 - Phone and computer on the **same Wi‑Fi** when using LAN mode
+- **Android Studio / Xcode** only if you need a native dev build (for voice input)
 
 ## Getting started
 
@@ -261,7 +259,7 @@ npm install
 
 ### 3. Start the development server
 
-For testing in **Expo Go** (recommended):
+For testing in **Expo Go**:
 
 ```powershell
 npx expo start -c --lan
@@ -271,7 +269,15 @@ Then:
 
 1. Open **Expo Go** on your phone.
 2. Scan the **QR code** from the terminal or browser.
-3. Wait for the bundle to load — **Math Garden** should open.
+3. Wait for the bundle to load — **Math Talk** should open.
+
+For **voice input** in games and classes, use a dev build instead:
+
+```powershell
+npx expo run:android
+# or on macOS with Xcode:
+npx expo run:ios
+```
 
 Other start options:
 
@@ -280,8 +286,6 @@ npm start
 npx expo start
 npx expo start --web
 ```
-
-> **Note:** `npm run android` and `npm run ios` run native builds and require Android Studio / Xcode. Use `npx expo start` if you only want **Expo Go**.
 
 ## NPM scripts
 
@@ -296,40 +300,38 @@ npx expo start --web
 
 ```
 .
-├── App.js              # Main app: UI, scores, rewards, screens
-├── games.js            # 71 games, round generators, menu categories
-├── lessons.js          # Math Classes content and lesson progress helpers
-├── LessonClassroom.js  # Teacher + whiteboard UI with spoken lessons
-├── lessonSpeech.js     # Text-to-speech narration helpers
-├── voiceAnswer.js      # Speech-to-text answer parsing for games
+├── App.js              # Main app: UI, scores, rewards, screens, reset progress
+├── games.js            # 79 games, round generators, categories
+├── lessons.js          # Core Math Classes content and lesson progress helpers
+├── lessonsExtra.js     # Compare, Even/Odd, Patterns, Mixed, BODMAS, Challenge classes
+├── lessonMap.js        # Per-class game unlock and home menu sections
+├── LessonClassroom.js  # Teacher + whiteboard UI with spoken, interactive lessons
+├── lessonSpeech.js     # Text-to-speech narration and answer-step sequencing
+├── voiceAnswer.js      # Speech-to-text answer parsing (optional native module)
 ├── VoiceAnswerPanel.js # Microphone UI in game screen
-├── progression.js      # Learning path, level unlocks, difficulty scaling
-├── badges.js           # Badge definitions and unlock logic (457 badges)
-├── app.json            # Expo config (name, slug, SDK, splash)
+├── progression.js      # Level unlocks, PASS_SCORE, difficulty scaling
+├── badges.js           # Badge definitions and unlock logic
+├── app.json            # Expo config (name: Math Talk, slug, SDK, splash)
 ├── package.json        # Dependencies and scripts
 ├── babel.config.js     # Babel / Metro preset (expo)
-├── README.md           # Project documentation (keep in sync with code)
+├── README.md           # Project documentation
 └── .expo/              # Local Expo dev cache (generated)
 ```
 
-**`App.js`** handles screens, styling, high scores, and rewards. **`games.js`** defines all games and generates each round. **`badges.js`** builds and evaluates badges from the game list.
-
 | Area | Details |
 |------|---------|
-| **Screens** | Menu (grouped by category), game play, high scores dashboard |
-| **Constants** | `MAX_ROUNDS = 12`, `GAMES` from `games.js`, theme colors |
+| **Screens** | Menu (by class), classes list, classroom, level select, game play, dashboard |
+| **Constants** | `MAX_ROUNDS = 12`, `MAX_SCORE = 5000`, `PASS_SCORE = 8`, `GAMES` from `games.js` |
 | **Storage keys** | `@mathGarden/highScores`, `@mathGarden/rewards`, `@mathGarden/progress` |
-| **Functions** | `loadHighScores`, `saveHighScore`, `loadRewards`, `applyRewards` |
-| **Games** | `createRound`, `getGamesByCategory`, UI helpers in `games.js` |
-| **Progression** | `getScaledConfig`, `recordLevelResult`, unlock checks in `progression.js` |
-| **Classes** | `LESSONS`, slide content, `completeLesson` in `lessons.js` |
-| **Voice answers** | `VoiceAnswerPanel`, `parseSpokenAnswer` in `voiceAnswer.js` |
-| **Badges** | `buildBadges`, `evaluateBadges`, `updateRewardStats` in `badges.js` |
+| **Classes** | `LESSONS` (14 classes), `completeLesson`, replay-safe progress in `lessons.js` |
+| **Unlock** | `lessonMap.js` maps each game to a class; `progression.js` checks level/tier unlock |
+| **Voice** | `voiceAnswer.js` + `VoiceAnswerPanel.js`; disabled in Expo Go when native module missing |
 
 ## Configuration
 
 Key values in `app.json`:
 
+- **Name:** Math Talk
 - **SDK:** 54.0.0
 - **Orientation:** portrait
 - **Splash background:** `#e9f7ee`
@@ -343,7 +345,10 @@ Key values in `app.json`:
 | App won’t connect | Same Wi‑Fi, disable VPN/firewall, use `--lan` |
 | Stale bundle / old UI | Restart with cache clear: `npx expo start -c` |
 | Metro port conflict | Accept the alternate port and rescan the QR code |
+| Voice / mic not working | Use `npx expo run:android` or `run:ios`; Expo Go may not load speech recognition |
+| `ExpoSpeechRecognition` error | Expected in Expo Go — tap answers instead; dev build required for voice |
 | Scores or rewards missing | Data is local to the device; reinstalling Expo Go may clear it |
+| Reset everything | Home screen → **↺ Reset all progress** (clears all three storage keys) |
 
 ## License
 

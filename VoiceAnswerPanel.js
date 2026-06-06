@@ -155,29 +155,29 @@ export function stopGameVoiceInput() {
 
 const styles = StyleSheet.create({
   panel: {
-    marginTop: 8,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 22,
+    marginTop: 6,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 16,
     backgroundColor: "#F0F9FF",
     borderWidth: 2,
     borderColor: "#BAE6FD",
-    gap: 8
+    gap: 6
   },
   title: {
     color: "#1E3A5F",
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "900"
   },
   subtitle: {
     color: "#5B7A9A",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: "600"
   },
   micButton: {
-    marginTop: 4,
-    borderRadius: 18,
+    marginTop: 2,
+    borderRadius: 14,
     overflow: "hidden",
     backgroundColor: "#6366F1"
   },
@@ -191,17 +191,17 @@ const styles = StyleSheet.create({
     opacity: 0.92
   },
   micInner: {
-    minHeight: 72,
+    minHeight: 56,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4
+    gap: 3
   },
   micEmoji: {
-    fontSize: 28
+    fontSize: 24
   },
   micLabel: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900"
   },
   transcript: {

@@ -1,4 +1,5 @@
 import * as Speech from "expo-speech";
+import { TEACHER_NAME } from "./teacherConfig";
 
 const SPEECH_OPTIONS = {
   language: "en-US",
@@ -76,6 +77,13 @@ export function buildAnswerPrompt(expected) {
   return `Your turn! Say ${word}. Tap ${expected} or use the microphone.`;
 }
 
+export function buildAnswerReprompt(expected) {
+  const word = numberWord(expected);
+  return `Hello? I am still waiting. Say ${word} out loud, or tap ${expected} on the screen.`;
+}
+
+export const ANSWER_SILENCE_MS = 6000;
+
 function buildCountingSteps(slide, lesson, slideIndex) {
   const visual = slide.visual;
   const count = visual.count;
@@ -85,7 +93,7 @@ function buildCountingSteps(slide, lesson, slideIndex) {
   if (slideIndex === 0) {
     steps.push({
       delayBefore: 500,
-      text: `Hello boys and girls! I am Teacher Maya. Welcome to ${lesson.title}! We will learn step by step, nice and slow.`,
+      text: `Hello boys and girls! I am ${TEACHER_NAME}, your math teacher. Welcome to ${lesson.title}! We will learn step by step, nice and slow.`,
       reveal: 0,
       pauseAfter: 500
     });
@@ -165,7 +173,7 @@ function buildCelebrateSteps(slide) {
 function buildSimpleSteps(slide, lesson, slideIndex) {
   const intro =
     slideIndex === 0
-      ? `Hello boys and girls! I am Teacher Maya. Welcome to ${lesson.title}! `
+      ? `Hello boys and girls! I am ${TEACHER_NAME}, your math teacher. Welcome to ${lesson.title}! `
       : "";
 
   return [

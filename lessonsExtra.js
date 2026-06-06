@@ -4,7 +4,7 @@ function classSlides(topic, emoji, tip, visual) {
       title: `What is ${topic}?`,
       emoji,
       body: tip,
-      tip: "Watch the whiteboard and listen to Teacher Maya!",
+      tip: "Watch the whiteboard and listen to Teacher Usama!",
       visual
     },
     {

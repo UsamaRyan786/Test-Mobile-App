@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import {
+  ANSWER_SILENCE_MS,
   buildAnswerPrompt,
+  buildAnswerReprompt,
   buildCorrectFeedback,
   buildSlideSpeechPlan,
   buildWrongFeedback,
@@ -18,11 +20,7 @@ import {
   ensureMicPermission,
   stopVoiceAnswerSession
 } from "./voiceAnswer";
-
-const TEACHER = {
-  name: "Teacher Maya",
-  emoji: "👩‍🏫"
-};
+import { TEACHER_LABEL, TEACHER_NAME } from "./teacherConfig";
 
 function AnimatedItem({ delay, children, style }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -99,7 +97,7 @@ function WhiteboardDrawing({ visual, slideKey, revealedCount, boardLabel }) {
             </View>
           </AnimatedItem>
         ) : showCount === 0 ? (
-          <Text style={styles.boardWaitingText}>Watch Teacher Maya draw…</Text>
+          <Text style={styles.boardWaitingText}>Watch {TEACHER_LABEL} draw…</Text>
         ) : null}
       </View>
     );
@@ -294,6 +292,196 @@ function buildAnswerChoices(expected, maxHint = 10) {
   return Array.from({ length: Math.min(limit, 15) }, (_, index) => index + 1);
 }
 
+function TeacherFigure({ speaking, pointing }) {
+  const bobAnim = useRef(new Animated.Value(0)).current;
+  const armAnim = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!speaking) {
+      bobAnim.setValue(0);
+      return undefined;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bobAnim, {
+          toValue: 1,
+          duration: 420,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true
+        }),
+        Animated.timing(bobAnim, {
+          toValue: 0,
+          duration: 420,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true
+        })
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [speaking, bobAnim]);
+
+  useEffect(() => {
+    Animated.spring(armAnim, {
+      toValue: pointing ? 1 : 0.25,
+      friction: 7,
+      tension: 70,
+      useNativeDriver: true
+    }).start();
+  }, [pointing, armAnim]);
+
+  useEffect(() => {
+    if (!speaking) {
+      glowAnim.setValue(0);
+      return undefined;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true
+        })
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [speaking, glowAnim]);
+
+  const figureStyle = {
+    transform: [
+      {
+        translateY: bobAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, -4]
+        })
+      }
+    ]
+  };
+
+  const armStyle = {
+    transform: [
+      {
+        rotate: armAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: ["-6deg", "-32deg"]
+        })
+      },
+      {
+        translateX: armAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 6]
+        })
+      }
+    ]
+  };
+
+  const glowStyle = {
+    opacity: glowAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.35, 0.85]
+    })
+  };
+
+  return (
+    <Animated.View style={[styles.teacherFigure, figureStyle]}>
+      <Animated.View style={[styles.teacherSpotlight, glowStyle]} />
+      <View style={styles.teacherHead}>
+        <View style={styles.teacherHair} />
+        <View style={styles.teacherFace}>
+          <View style={styles.teacherEyesRow}>
+            <View style={styles.teacherEye} />
+            <View style={styles.teacherEye} />
+          </View>
+          <Text style={styles.teacherMouth}>{speaking ? "😮" : "🙂"}</Text>
+        </View>
+      </View>
+      <View style={styles.teacherNeck} />
+      <View style={styles.teacherShirt}>
+        <View style={styles.teacherTie} />
+        <Text style={styles.teacherInitial}>{TEACHER_NAME.charAt(0)}</Text>
+      </View>
+      <View style={styles.teacherLegsRow}>
+        <View style={styles.teacherLeg} />
+        <View style={styles.teacherLeg} />
+      </View>
+      <View style={styles.teacherFeetRow}>
+        <View style={styles.teacherShoe} />
+        <View style={styles.teacherShoe} />
+      </View>
+      <View style={styles.teacherBookHand}>
+        <View style={styles.teacherBook} />
+      </View>
+      <Animated.View style={[styles.teacherPointArm, armStyle]}>
+        <View style={styles.teacherArmLine} />
+        <Text style={styles.teacherPointHand}>{pointing ? "👆" : "✋"}</Text>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+function TeacherSpeechBubble({ visible, text }) {
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <View style={styles.speechBubbleWrap}>
+      <View style={styles.speechBubble}>
+        <Text style={styles.speechBubbleText} numberOfLines={2}>
+          {text}
+        </Text>
+      </View>
+      <Text style={styles.speechBubblePointer}>▼</Text>
+    </View>
+  );
+}
+
+function ClassroomStage({
+  speaking,
+  pointing,
+  statusText,
+  slideTitle,
+  onReplay,
+  children
+}) {
+  return (
+    <View style={styles.classroomStage}>
+      <View style={styles.classroomWall}>
+        <View style={styles.teacherStandZone}>
+          <TeacherSpeechBubble
+            visible={speaking}
+            text={statusText === "👂 Listen closely!" ? "Watch the board!" : statusText}
+          />
+          <TeacherFigure speaking={speaking} pointing={pointing} />
+          <View style={styles.teacherNamePlate}>
+            <Text style={styles.teacherNamePlateTitle}>{TEACHER_LABEL}</Text>
+            <Text style={styles.teacherNamePlateSub}>{slideTitle}</Text>
+          </View>
+          <Text style={styles.teacherStatusLine}>{statusText}</Text>
+        </View>
+        <View style={styles.boardStandZone}>{children}</View>
+      </View>
+      <View style={styles.classroomFloor}>
+        <View style={styles.floorLine} />
+        <Pressable onPress={onReplay} style={styles.stageReplayButton}>
+          <Text style={styles.stageReplayText}>🔊 Hear again</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function LessonAnswerPanel({ expected, listening, voiceAvailable, heardText, voiceHint, onAnswer, onMicPress }) {
   const choices = buildAnswerChoices(expected);
   const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -336,7 +524,7 @@ function LessonAnswerPanel({ expected, listening, voiceAvailable, heardText, voi
       <Text style={styles.answerPanelPrompt}>
         {voiceAvailable
           ? `Say ${expected} out loud, or tap ${expected} below.`
-          : `Tap the number ${expected} below to answer Teacher Maya.`}
+          : `Tap the number ${expected} below to answer ${TEACHER_LABEL}.`}
       </Text>
       {!voiceAvailable && voiceHint ? <Text style={styles.answerExpoHint}>📱 {voiceHint}</Text> : null}
       <View style={styles.answerChoices}>
@@ -404,6 +592,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
   const sequenceContinueRef = useRef(null);
   const voiceAvailableRef = useRef(false);
   const answerPromptRef = useRef(null);
+  const answerTimeoutRef = useRef(null);
   const usesRevealSync =
     slide.visual?.type === "dots" || slide.visual?.type === "match" || slide.visual?.type === "celebrate";
 
@@ -412,6 +601,13 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
     voiceSessionRef.current = null;
     stopVoiceAnswerSession();
     setListening(false);
+  }, []);
+
+  const clearAnswerTimeout = useCallback(() => {
+    if (answerTimeoutRef.current) {
+      clearTimeout(answerTimeoutRef.current);
+      answerTimeoutRef.current = null;
+    }
   }, []);
 
   const startPulse = useCallback(() => {
@@ -459,7 +655,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
 
       const granted = await ensureMicPermission();
       if (!granted) {
-        setLiveCaption("Please allow microphone access so Teacher Maya can hear you.");
+        setLiveCaption(`Please allow microphone access so ${TEACHER_LABEL} can hear you.`);
         return;
       }
 
@@ -480,6 +676,39 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
     [stopVoiceSession]
   );
 
+  const scheduleAnswerReprompt = useCallback(
+    (expected) => {
+      clearAnswerTimeout();
+      answerTimeoutRef.current = setTimeout(() => {
+        answerTimeoutRef.current = null;
+        if (answerPromptRef.current?.expected !== expected) {
+          return;
+        }
+
+        stopVoiceSession();
+        const reprompt = buildAnswerReprompt(expected);
+        setLiveCaption(reprompt);
+        setSpeaking(true);
+        startPulse();
+        speakLessonFeedback(reprompt, {
+          onDone: () => {
+            if (answerPromptRef.current?.expected !== expected) {
+              return;
+            }
+            setSpeaking(false);
+            stopPulse();
+            setLiveCaption(buildAnswerPrompt(expected));
+            if (voiceAvailableRef.current) {
+              startVoiceForAnswer(expected);
+            }
+            scheduleAnswerReprompt(expected);
+          }
+        });
+      }, ANSWER_SILENCE_MS);
+    },
+    [clearAnswerTimeout, startPulse, stopPulse, startVoiceForAnswer, stopVoiceSession]
+  );
+
   const handleStudentAnswer = useCallback(
     (guess) => {
       const expected = answerPromptRef.current?.expected;
@@ -487,6 +716,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
         return;
       }
 
+      clearAnswerTimeout();
       stopVoiceSession();
 
       if (Number(guess) !== Number(expected)) {
@@ -497,6 +727,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
             if (voiceAvailableRef.current) {
               startVoiceForAnswer(expected);
             }
+            scheduleAnswerReprompt(expected);
           }
         });
         return;
@@ -515,7 +746,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
         }
       });
     },
-    [stopVoiceSession, startVoiceForAnswer]
+    [clearAnswerTimeout, stopVoiceSession, startVoiceForAnswer, scheduleAnswerReprompt]
   );
 
   handleStudentAnswerRef.current = handleStudentAnswer;
@@ -523,6 +754,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
   const runLessonSequence = useCallback(() => {
     stopLessonSpeech();
     stopVoiceSession();
+    clearAnswerTimeout();
     setAnswerPrompt(null);
     answerPromptRef.current = null;
     sequenceContinueRef.current = null;
@@ -540,6 +772,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
     startPulse();
 
     const handleStepStart = (step) => {
+      clearAnswerTimeout();
       setAnswerPrompt(null);
       answerPromptRef.current = null;
       setHeardText("");
@@ -552,6 +785,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
     };
 
     const handleSlideSpeechDone = () => {
+      clearAnswerTimeout();
       setSpeaking(false);
       setAnswerPrompt(null);
       answerPromptRef.current = null;
@@ -571,6 +805,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       if (voiceAvailableRef.current) {
         startVoiceForAnswer(step.waitForAnswer);
       }
+      scheduleAnswerReprompt(step.waitForAnswer);
     };
 
     if (plan.mode === "sequence") {
@@ -586,7 +821,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
         }
       });
     }
-  }, [lesson, slide, slideIndex, startPulse, stopPulse, stopVoiceSession, startVoiceForAnswer, onSlideSpeechProgress]);
+  }, [lesson, slide, slideIndex, startPulse, stopPulse, stopVoiceSession, clearAnswerTimeout, startVoiceForAnswer, scheduleAnswerReprompt, onSlideSpeechProgress]);
 
   useEffect(() => {
     checkVoiceAnswerSupport().then((result) => {
@@ -602,63 +837,59 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       stopLessonSpeech();
       stopVoiceSession();
       stopPulse();
+      clearAnswerTimeout();
     };
-  }, [lesson.id, slideIndex, slideKey, runLessonSequence, stopVoiceSession, stopPulse]);
+  }, [lesson.id, slideIndex, slideKey, runLessonSequence, stopVoiceSession, stopPulse, clearAnswerTimeout]);
 
   function replaySpeech() {
     runLessonSequence();
   }
 
-  const mouthScale = pulseAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.08]
-  });
+  const statusText = answerPrompt
+    ? "👂 Your turn — say the number!"
+    : speaking
+      ? "🎤 Teaching at the board…"
+      : "👂 Listen closely!";
+
+  const captionLabel = answerPrompt
+    ? `${TEACHER_LABEL} asks:`
+    : speaking
+      ? `${TEACHER_LABEL} says:`
+      : "Remember:";
+
+  const pointingAtBoard = speaking || Boolean(answerPrompt) || revealedCount > 0;
 
   return (
     <View style={styles.classroom}>
-      <View style={styles.teacherPanel}>
-        <Animated.View style={[styles.teacherAvatar, speaking && { transform: [{ scale: mouthScale }] }]}>
-          <Text style={styles.teacherEmoji}>{TEACHER.emoji}</Text>
-        </Animated.View>
-        <View style={styles.teacherCopy}>
-          <Text style={styles.teacherName}>{TEACHER.name}</Text>
-          <Text style={styles.teacherStatus}>
-            {answerPrompt
-              ? "👂 Your turn — say the number!"
-              : speaking
-                ? "🎤 Speaking…"
-                : "👂 Listen closely!"}
-          </Text>
-          <Text style={styles.teacherSlideTitle}>{slide.title}</Text>
-        </View>
-        <Pressable onPress={replaySpeech} style={styles.replayButton}>
-          <Text style={styles.replayButtonText}>🔊 Again</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.whiteboardFrame}>
-        <View style={styles.whiteboardHeader}>
-          <Text style={styles.whiteboardTitle}>📋 Whiteboard</Text>
-          <View style={styles.chalkTray}>
-            <View style={[styles.chalk, { backgroundColor: "#FFFFFF" }]} />
-            <View style={[styles.chalk, { backgroundColor: "#FDE047" }]} />
-            <View style={[styles.chalk, { backgroundColor: "#86EFAC" }]} />
+      <ClassroomStage
+        speaking={speaking}
+        pointing={pointingAtBoard}
+        statusText={statusText}
+        slideTitle={slide.title}
+        onReplay={replaySpeech}
+      >
+        <View style={styles.whiteboardFrame}>
+          <View style={styles.whiteboardHeader}>
+            <Text style={styles.whiteboardTitle}>📋 Class whiteboard</Text>
+            <View style={styles.chalkTray}>
+              <View style={[styles.chalk, { backgroundColor: "#FFFFFF" }]} />
+              <View style={[styles.chalk, { backgroundColor: "#FDE047" }]} />
+              <View style={[styles.chalk, { backgroundColor: "#86EFAC" }]} />
+            </View>
+          </View>
+          <View style={styles.whiteboardSurface}>
+            <WhiteboardDrawing
+              visual={slide.visual}
+              slideKey={slideKey}
+              revealedCount={usesRevealSync ? revealedCount : undefined}
+              boardLabel={getBoardCountLabel(slide.visual)}
+            />
           </View>
         </View>
-        <View style={styles.whiteboardSurface}>
-          <WhiteboardDrawing
-            visual={slide.visual}
-            slideKey={slideKey}
-            revealedCount={usesRevealSync ? revealedCount : undefined}
-            boardLabel={getBoardCountLabel(slide.visual)}
-          />
-        </View>
-      </View>
+      </ClassroomStage>
 
       <View style={styles.captionBox}>
-        <Text style={styles.captionLive}>
-          {answerPrompt ? "Teacher Maya asks:" : speaking ? "Teacher Maya says:" : "Remember:"}
-        </Text>
+        <Text style={styles.captionLive}>{captionLabel}</Text>
         <Text style={styles.captionText}>{liveCaption}</Text>
         <Text style={styles.captionTip}>💡 {slide.tip}</Text>
       </View>
@@ -684,41 +915,279 @@ export function stopClassroomSpeech() {
 }
 
 const styles = StyleSheet.create({
-  classroom: { gap: 14 },
-  teacherPanel: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderRadius: 20,
-    backgroundColor: "#FEF3C7",
+  classroom: { gap: 10 },
+  classroomStage: {
+    borderRadius: 18,
+    overflow: "hidden",
     borderWidth: 2,
-    borderColor: "#FDE68A"
+    borderColor: "#CBD5E1",
+    backgroundColor: "#E2E8F0"
   },
-  teacherAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#FFFFFF",
+  classroomWall: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    minHeight: 240,
+    backgroundColor: "#F1F5F9"
+  },
+  teacherStandZone: {
+    width: "34%",
+    minWidth: 108,
+    paddingTop: 12,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
     alignItems: "center",
+    justifyContent: "flex-end",
+    backgroundColor: "#E0E7FF",
+    borderRightWidth: 2,
+    borderRightColor: "#CBD5E1"
+  },
+  boardStandZone: {
+    flex: 1,
+    padding: 8,
     justifyContent: "center"
   },
-  teacherEmoji: { fontSize: 32 },
-  teacherCopy: { flex: 1 },
-  teacherName: { color: "#1E3A5F", fontSize: 16, fontWeight: "900" },
-  teacherStatus: { marginTop: 2, color: "#5B7A9A", fontSize: 12, fontWeight: "700" },
-  teacherSlideTitle: { marginTop: 4, color: "#1E3A5F", fontSize: 14, fontWeight: "800" },
-  replayButton: {
+  classroomFloor: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
     paddingVertical: 8,
+    backgroundColor: "#D6C4A8",
+    borderTopWidth: 2,
+    borderTopColor: "#A89070"
+  },
+  floorLine: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "#B8956C",
+    marginRight: 10
+  },
+  stageReplayButton: {
+    paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: "#6366F1"
   },
-  replayButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+  stageReplayText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  teacherFigure: {
+    width: 88,
+    height: 148,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    position: "relative"
+  },
+  teacherSpotlight: {
+    position: "absolute",
+    top: 0,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#FDE68A"
+  },
+  teacherHead: {
+    width: 52,
+    height: 52,
+    alignItems: "center",
+    zIndex: 2
+  },
+  teacherHair: {
+    position: "absolute",
+    top: 0,
+    width: 54,
+    height: 22,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    backgroundColor: "#3F2A1D"
+  },
+  teacherFace: {
+    marginTop: 10,
+    width: 48,
+    height: 42,
+    borderRadius: 22,
+    backgroundColor: "#F5CBA7",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#E8B48A"
+  },
+  teacherEyesRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4
+  },
+  teacherEye: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#1E293B"
+  },
+  teacherMouth: {
+    fontSize: 14,
+    marginTop: 2
+  },
+  teacherNeck: {
+    width: 16,
+    height: 8,
+    backgroundColor: "#F5CBA7",
+    marginTop: -2,
+    zIndex: 1
+  },
+  teacherShirt: {
+    width: 56,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#1D4ED8",
+    zIndex: 1
+  },
+  teacherTie: {
+    position: "absolute",
+    top: 0,
+    width: 10,
+    height: 22,
+    backgroundColor: "#DC2626",
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4
+  },
+  teacherInitial: {
+    marginTop: 8,
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  teacherLegsRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 2,
+    zIndex: 1
+  },
+  teacherLeg: {
+    width: 18,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: "#334155"
+  },
+  teacherFeetRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 2,
+    zIndex: 1
+  },
+  teacherShoe: {
+    width: 22,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#1E293B"
+  },
+  teacherBookHand: {
+    position: "absolute",
+    left: 2,
+    bottom: 52,
+    zIndex: 3
+  },
+  teacherBook: {
+    width: 16,
+    height: 22,
+    borderRadius: 3,
+    backgroundColor: "#F97316",
+    borderWidth: 1,
+    borderColor: "#EA580C"
+  },
+  teacherPointArm: {
+    position: "absolute",
+    right: -8,
+    bottom: 72,
+    width: 54,
+    height: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 4
+  },
+  teacherArmLine: {
+    width: 34,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#F5CBA7",
+    borderWidth: 1,
+    borderColor: "#E8B48A"
+  },
+  teacherPointHand: {
+    fontSize: 18,
+    marginLeft: -4
+  },
+  speechBubbleWrap: {
+    position: "absolute",
+    top: 0,
+    left: 2,
+    right: 2,
+    alignItems: "center",
+    zIndex: 5
+  },
+  speechBubble: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#6366F1",
+    width: "100%"
+  },
+  speechBubbleText: {
+    color: "#312E81",
+    fontSize: 10,
+    fontWeight: "800",
+    textAlign: "center",
+    lineHeight: 14
+  },
+  speechBubblePointer: {
+    marginTop: -2,
+    color: "#6366F1",
+    fontSize: 12,
+    lineHeight: 12
+  },
+  teacherNamePlate: {
+    marginTop: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#6366F1",
+    alignItems: "center"
+  },
+  teacherNamePlateTitle: {
+    color: "#1E3A5F",
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  teacherNamePlateSub: {
+    marginTop: 1,
+    color: "#64748B",
+    fontSize: 9,
+    fontWeight: "700",
+    textAlign: "center"
+  },
+  teacherStatusLine: {
+    marginTop: 4,
+    color: "#475569",
+    fontSize: 9,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 12
+  },
   whiteboardFrame: {
-    borderRadius: 16,
+    flex: 1,
+    borderRadius: 12,
     overflow: "hidden",
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: "#8B5E3C",
     backgroundColor: "#8B5E3C"
   },
@@ -726,19 +1195,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     backgroundColor: "#A16207"
   },
-  whiteboardTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
+  whiteboardTitle: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
   chalkTray: { flexDirection: "row", gap: 4 },
-  chalk: { width: 18, height: 6, borderRadius: 3 },
-  whiteboardSurface: { minHeight: 220, padding: 16, backgroundColor: "#1F4D3A" },
-  boardEmpty: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 180 },
-  boardEmptyText: { color: "rgba(255,255,255,0.7)", fontSize: 16, fontWeight: "700" },
-  boardWaitingText: { color: "rgba(255,255,255,0.55)", fontSize: 14, fontWeight: "700", marginTop: 8 },
-  boardContent: { alignItems: "center", gap: 12 },
-  boardLabel: { color: "#FFFFFF", fontSize: 15, fontWeight: "800" },
+  chalk: { width: 16, height: 5, borderRadius: 3 },
+  whiteboardSurface: { minHeight: 168, padding: 10, backgroundColor: "#1F4D3A" },
+  boardEmpty: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 130 },
+  boardEmptyText: { color: "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: "700" },
+  boardWaitingText: { color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: "700", marginTop: 6 },
+  boardContent: { alignItems: "center", gap: 10 },
+  boardLabel: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
   boardRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -815,23 +1284,23 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   boardSkipNumber: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
-  boardCelebrate: { alignItems: "center", justifyContent: "center", minHeight: 180, gap: 10 },
-  boardCelebrateEmoji: { fontSize: 64 },
-  boardCelebrateText: { color: "#FFFFFF", fontSize: 22, fontWeight: "900" },
-  captionBox: { padding: 14, borderRadius: 16, backgroundColor: "#F8FAFC", gap: 8 },
-  captionLive: { color: "#6366F1", fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
-  captionText: { color: "#1E3A5F", fontSize: 16, lineHeight: 24, fontWeight: "600" },
-  captionTip: { color: "#5B7A9A", fontSize: 14, lineHeight: 20, fontWeight: "700" },
+  boardCelebrate: { alignItems: "center", justifyContent: "center", minHeight: 150, gap: 8 },
+  boardCelebrateEmoji: { fontSize: 48 },
+  boardCelebrateText: { color: "#FFFFFF", fontSize: 18, fontWeight: "900" },
+  captionBox: { padding: 12, borderRadius: 14, backgroundColor: "#F8FAFC", gap: 6 },
+  captionLive: { color: "#6366F1", fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
+  captionText: { color: "#1E3A5F", fontSize: 14, lineHeight: 21, fontWeight: "600" },
+  captionTip: { color: "#5B7A9A", fontSize: 13, lineHeight: 18, fontWeight: "700" },
   answerPanel: {
-    padding: 16,
-    borderRadius: 18,
+    padding: 12,
+    borderRadius: 14,
     backgroundColor: "#EEF2FF",
     borderWidth: 2,
     borderColor: "#C7D2FE",
-    gap: 10
+    gap: 8
   },
-  answerPanelTitle: { color: "#312E81", fontSize: 17, fontWeight: "900" },
-  answerPanelPrompt: { color: "#4338CA", fontSize: 14, lineHeight: 20, fontWeight: "700" },
+  answerPanelTitle: { color: "#312E81", fontSize: 15, fontWeight: "900" },
+  answerPanelPrompt: { color: "#4338CA", fontSize: 13, lineHeight: 18, fontWeight: "700" },
   answerChoices: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -839,10 +1308,10 @@ const styles = StyleSheet.create({
     gap: 10
   },
   answerChoice: {
-    minWidth: 52,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    minWidth: 48,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     backgroundColor: "#FFFFFF",
     borderWidth: 2,
     borderColor: "#A5B4FC",
@@ -853,11 +1322,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#E0E7FF"
   },
   answerChoicePressed: { opacity: 0.88 },
-  answerChoiceText: { color: "#312E81", fontSize: 20, fontWeight: "900" },
+  answerChoiceText: { color: "#312E81", fontSize: 18, fontWeight: "900" },
   answerMicButton: {
-    marginTop: 4,
-    paddingVertical: 12,
-    borderRadius: 14,
+    marginTop: 2,
+    paddingVertical: 10,
+    borderRadius: 12,
     backgroundColor: "#6366F1",
     alignItems: "center"
   },

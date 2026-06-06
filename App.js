@@ -64,10 +64,21 @@ import {
   getCompletedLessonCount
 } from "./lessons";
 import { getGameUnlockHint, getLessonGameSections } from "./lessonMap";
+import { TEACHER_LABEL } from "./teacherConfig";
 
 const MAX_ROUNDS = 12;
+const MAX_SCORE = 5000;
 const HIGH_SCORES_KEY = "@mathGarden/highScores";
 const REWARDS_KEY = "@mathGarden/rewards";
+
+function toDisplayScore(correctCount) {
+  const value = Number(correctCount) || 0;
+  return Math.round((value / MAX_ROUNDS) * MAX_SCORE);
+}
+
+function formatScoreLabel(correctCount) {
+  return `${toDisplayScore(correctCount)}/${MAX_SCORE}`;
+}
 
 const THEME = {
   bg: ["#C9EFFF", "#E8F5FF", "#FFF4E6"],
@@ -287,17 +298,17 @@ function MenuGameCard({
     }).start();
   }, [index, slideAnim]);
 
+  const cardScale = Animated.multiply(
+    slideAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.94, 1]
+    }),
+    scaleAnim
+  );
+
   const entranceStyle = {
     opacity: slideAnim,
-    transform: [
-      {
-        translateY: slideAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [40, 0]
-        })
-      },
-      { scale: scaleAnim }
-    ]
+    transform: [{ scale: cardScale }]
   };
 
   function handlePressIn() {
@@ -317,7 +328,7 @@ function MenuGameCard({
   }
 
   return (
-    <Animated.View style={[entranceStyle, locked && styles.gameCardLockedWrap]}>
+    <Animated.View style={[entranceStyle, styles.menuGameCardWrap, locked && styles.gameCardLockedWrap]}>
       <Pressable
         onPress={locked ? undefined : onPress}
         onPressIn={locked ? undefined : handlePressIn}
@@ -335,7 +346,7 @@ function MenuGameCard({
           <View style={styles.gameCardScoreBadge}>
             <Text style={styles.gameCardScoreLabel}>Best</Text>
             <Text style={styles.gameCardScoreValue}>
-              {hasPlayed ? `${bestScore}/${MAX_ROUNDS}` : "—"}
+              {hasPlayed ? formatScoreLabel(bestScore) : "—"}
             </Text>
           </View>
           <View style={styles.gameCardLevelBadge}>
@@ -576,7 +587,7 @@ function DashboardScoreRow({ game, record, index }) {
         </View>
         <View style={styles.dashboardRowScoreBlock}>
           <Text style={styles.dashboardRowScore}>
-            {hasPlayed ? `${record.best}/${MAX_ROUNDS}` : "—"}
+            {hasPlayed ? formatScoreLabel(record.best) : "—"}
           </Text>
           {hasPlayed && <StarRating count={stars} compact />}
         </View>
@@ -836,9 +847,9 @@ function ClassCard({ lesson, progress, index, onPress }) {
     opacity: slideAnim,
     transform: [
       {
-        translateY: slideAnim.interpolate({
+        scale: slideAnim.interpolate({
           inputRange: [0, 1],
-          outputRange: [30, 0]
+          outputRange: [0.96, 1]
         })
       }
     ]
@@ -853,8 +864,8 @@ function ClassCard({ lesson, progress, index, onPress }) {
         accessibilityState={{ disabled: !unlocked }}
       >
         <LinearGradient
-          colors={unlocked ? lesson.gradient : ["#E2E8F0", "#CBD5E1"]}
-          style={styles.classCard}
+          colors={unlocked ? lesson.gradient : ["#475569", "#334155"]}
+          style={[styles.classCard, !unlocked && styles.classCardLocked]}
         >
           {!unlocked ? (
             <View style={styles.classCardLock}>
@@ -1260,7 +1271,7 @@ export default function App() {
                 : ""
           }`
         : ` Score ${PASS_SCORE}+ needed to pass Level ${selectedLevel}.`;
-      setMessage(`${starMsg}${recordMsg}${passMsg} Score: ${nextScore}/${MAX_ROUNDS}`);
+      setMessage(`${starMsg}${recordMsg}${passMsg} Score: ${formatScoreLabel(nextScore)}`);
       pulseMessage();
       return;
     }
@@ -1299,7 +1310,7 @@ export default function App() {
 
     return (
       <ScreenShell>
-        <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.screen, styles.menuScreen]} showsVerticalScrollIndicator={false}>
           <Animated.View style={[styles.menuHeader, logoStyle]}>
             <LinearGradient colors={["#FDE68A", "#FBBF24"]} style={styles.logoBadge}>
               <Text style={styles.logoBadgeText}>🌈</Text>
@@ -1334,23 +1345,11 @@ export default function App() {
             </View>
           </LinearGradient>
 
-          <Pressable
-            onPress={confirmResetProgress}
-            style={({ pressed }) => [styles.menuResetButton, pressed && styles.pressedButton]}
-            accessibilityRole="button"
-            accessibilityLabel="Reset all progress"
-          >
-            <Text style={styles.menuResetButtonText}>↺ Reset all progress</Text>
-            <Text style={styles.menuResetButtonHint}>
-              Clears classes, coins, badges, scores, and locks games again
-            </Text>
-          </Pressable>
-
           <LinearGradient colors={["#EEF2FF", "#E0E7FF"]} style={styles.classesPromo}>
             <View style={styles.classesPromoCopy}>
               <Text style={styles.classesPromoTitle}>📚 Math Classes</Text>
               <Text style={styles.classesPromoText}>
-                Teacher Maya speaks and draws on the whiteboard! {getCompletedLessonCount(progress)}/
+                {TEACHER_LABEL} speaks and draws on the whiteboard! {getCompletedLessonCount(progress)}/
                 {LESSONS.length} classes done.
               </Text>
             </View>
@@ -1371,11 +1370,17 @@ export default function App() {
           </View>
 
           {getPlayableCategoryLabels(progress, GAMES).length > 0 ? (
-            <Text style={styles.playableHint}>
-              🎮 Unlocked games: {getPlayableCategoryLabels(progress, GAMES).join(" · ")}
-            </Text>
+            <View style={styles.playableHint}>
+              <Text style={styles.playableHintText}>
+                🎮 Unlocked games: {getPlayableCategoryLabels(progress, GAMES).join(" · ")}
+              </Text>
+            </View>
           ) : (
-            <Text style={styles.playableHint}>🎧 Start with Counting Class to unlock your first games!</Text>
+            <View style={styles.playableHint}>
+              <Text style={styles.playableHintText}>
+                🎧 Start with Counting Class to unlock your first games!
+              </Text>
+            </View>
           )}
 
           <LearningPathBar progress={progress} />
@@ -1393,7 +1398,7 @@ export default function App() {
               </Text>
             ) : (
               <Text style={styles.menuScoreSummaryText}>
-                Top score: {topRecord.game.emoji} {topRecord.game.title} ({topRecord.record.best}/{MAX_ROUNDS})
+                Top score: {topRecord.game.emoji} {topRecord.game.title} ({formatScoreLabel(topRecord.record.best)})
                 {" · "}
                 {totalPlays} play{totalPlays === 1 ? "" : "s"}
                 {perfectGames > 0 ? ` · ${perfectGames} perfect` : ""}
@@ -1401,6 +1406,7 @@ export default function App() {
             )}
           </LinearGradient>
 
+          <View style={styles.menuGamesBlock}>
           {getLessonGameSections(GAMES).map((section) => {
             const sectionLabel = `${section.emoji} ${section.menuLabel || section.title.replace(" Class", "")}`;
             const lessonComplete = isLessonComplete(progress, section.id);
@@ -1434,9 +1440,9 @@ export default function App() {
                   ) : null}
                 </View>
                 <View style={styles.gameCategoryList}>
-                  {section.games.map((game) => {
+                  {section.games.map((game, gameIndex) => {
                     const record = highScores[game.id] || { best: 0, plays: 0 };
-                    const index = GAMES.findIndex((item) => item.id === game.id);
+                    const index = gameIndex;
                     const gameProgress = getGameProgress(progress, game.id);
                     const locked = !isGameUnlocked(progress, game);
                     const gameHint = locked ? getGameUnlockHint(progress, game) : null;
@@ -1462,6 +1468,21 @@ export default function App() {
               </View>
             );
           })}
+          </View>
+
+          <View style={styles.menuFooter}>
+            <Pressable
+              onPress={confirmResetProgress}
+              style={({ pressed }) => [styles.menuResetButton, pressed && styles.pressedButton]}
+              accessibilityRole="button"
+              accessibilityLabel="Reset all progress"
+            >
+              <Text style={styles.menuResetButtonText}>↺ Reset all progress</Text>
+              <Text style={styles.menuResetButtonHint}>
+                Clears classes, coins, badges, scores, and locks games again
+              </Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </ScreenShell>
     );
@@ -1490,7 +1511,7 @@ export default function App() {
           <LinearGradient colors={["#FFFFFF", "#FFFBEB"]} style={styles.levelSelectPanel}>
             <Text style={styles.levelSelectTitle}>Pick a Level</Text>
             <Text style={styles.levelSelectSubtitle}>
-              Score {PASS_SCORE}/{MAX_ROUNDS} or more to pass · Each level gets a little harder
+              Score {formatScoreLabel(PASS_SCORE)} or more to pass · Each level gets a little harder
             </Text>
 
             <View style={styles.tierToggleRow}>
@@ -1558,7 +1579,7 @@ export default function App() {
                     </Text>
                     {record?.passed ? <Text style={styles.levelButtonCheck}>✓</Text> : null}
                     {record?.best ? (
-                      <Text style={styles.levelButtonScore}>{record.best}/{MAX_ROUNDS}</Text>
+                      <Text style={styles.levelButtonScore}>{formatScoreLabel(record.best)}</Text>
                     ) : null}
                   </Pressable>
                 );
@@ -1618,7 +1639,7 @@ export default function App() {
               <LinearGradient colors={["#DBEAFE", "#BFDBFE"]} style={styles.statBox}>
                 <Text style={styles.statEmoji}>🏆</Text>
                 <Text style={styles.label}>Score</Text>
-                <Text style={styles.statValue}>{score}</Text>
+                <Text style={styles.statValue}>{toDisplayScore(score)}</Text>
               </LinearGradient>
               <LinearGradient colors={["#FCE7F3", "#FBCFE8"]} style={styles.statBox}>
                 <Text style={styles.statEmoji}>🎯</Text>
@@ -1631,7 +1652,7 @@ export default function App() {
                 <Text style={styles.statEmoji}>⭐</Text>
                 <Text style={styles.label}>Best</Text>
                 <Text style={styles.statValue}>
-                  {currentHighScore}/{MAX_ROUNDS}
+                  {formatScoreLabel(currentHighScore)}
                 </Text>
               </LinearGradient>
             </View>
@@ -1682,7 +1703,7 @@ export default function App() {
                   <Text style={styles.levelPassBanner}>✅ Level {selectedLevel} passed!</Text>
                 ) : (
                   <Text style={styles.levelFailBanner}>
-                    Score {PASS_SCORE}/{MAX_ROUNDS}+ needed to pass Level {selectedLevel}
+                    Score {formatScoreLabel(PASS_SCORE)}+ needed to pass Level {selectedLevel}
                   </Text>
                 )}
                 {sessionReward && (
@@ -1797,7 +1818,7 @@ export default function App() {
           <LinearGradient colors={["#FEF3C7", "#FDE68A"]} style={styles.classesIntro}>
             <Text style={styles.classesIntroTitle}>Listen like a real classroom</Text>
             <Text style={styles.classesIntroText}>
-              Teacher Maya speaks each lesson aloud while drawing on the whiteboard. Finish a
+              {TEACHER_LABEL} speaks each lesson aloud while drawing on the whiteboard. Finish a
               class to unlock its games. You can replay any finished class anytime — it will not
               lock or change your games.
             </Text>
@@ -1883,7 +1904,7 @@ export default function App() {
                   >
                     <Text style={styles.lessonNextText}>
                       {!slideSpeechComplete
-                        ? "Finish this step with Teacher Maya first…"
+                        ? `Finish this step with ${TEACHER_LABEL} first…`
                         : isLastSlide
                           ? "Finish Class! 🎉"
                           : "Next Step →"}
@@ -1960,7 +1981,7 @@ export default function App() {
               <View style={styles.dashboardChampion}>
                 <Text style={styles.dashboardChampionLabel}>Top game</Text>
                 <Text style={styles.dashboardChampionText}>
-                  {topRecord.game.emoji} {topRecord.game.title} — {topRecord.record.best}/{MAX_ROUNDS}
+                  {topRecord.game.emoji} {topRecord.game.title} — {formatScoreLabel(topRecord.record.best)}
                 </Text>
               </View>
             )}
@@ -2079,138 +2100,153 @@ const styles = StyleSheet.create({
   },
   screen: {
     flexGrow: 1,
-    paddingTop: 24,
-    paddingHorizontal: 20,
-    paddingBottom: 36,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 28,
     zIndex: 1
+  },
+  menuScreen: {
+    paddingTop: 8
   },
   menuHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    marginBottom: 24,
-    padding: 18,
-    borderRadius: 28,
+    gap: 12,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.85)",
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.9)",
     shadowColor: "#60A5FA",
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4
   },
   logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#F59E0B",
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4
   },
   logoBadgeText: {
-    fontSize: 32
+    fontSize: 26
   },
   heroCopy: {
     flex: 1
   },
   logoTitle: {
     color: THEME.text,
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: "900",
-    letterSpacing: -0.5
+    letterSpacing: -0.3
   },
   logoSubtitle: {
-    marginTop: 4,
+    marginTop: 2,
     color: THEME.textSoft,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: "600"
   },
   sectionHeader: {
-    marginBottom: 8
+    marginTop: 16,
+    marginBottom: 4
   },
   eyebrow: {
     color: THEME.purple,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
-    letterSpacing: 0.5
+    letterSpacing: 0.4
   },
   title: {
-    marginTop: 8,
+    marginTop: 6,
     color: THEME.text,
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: "900",
-    lineHeight: 38
+    lineHeight: 30
   },
   subtitle: {
-    marginTop: 10,
+    marginTop: 6,
     color: THEME.textSoft,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: "500"
   },
   playableHint: {
-    marginTop: 10,
-    marginBottom: 4,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.85)",
+    marginTop: 8,
+    marginBottom: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.85)"
+  },
+  playableHintText: {
     color: THEME.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
-    lineHeight: 20
+    lineHeight: 18
+  },
+  menuGamesBlock: {
+    alignSelf: "stretch",
+    width: "100%"
   },
   gameCategorySection: {
-    marginTop: 20,
-    gap: 12
+    marginTop: 14,
+    gap: 8,
+    alignSelf: "stretch",
+    width: "100%"
   },
   gameCategoryHeader: {
     gap: 4
   },
   gameCategoryTitle: {
     color: THEME.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800"
   },
   gameCategoryLockHint: {
     color: THEME.textSoft,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600"
   },
   gameCategoryList: {
-    gap: 16
+    gap: 10,
+    alignSelf: "stretch",
+    width: "100%"
   },
   learningPathBar: {
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 22,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.8)"
   },
   learningPathTitle: {
     color: THEME.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900"
   },
   learningPathSubtitle: {
-    marginTop: 6,
+    marginTop: 4,
     color: THEME.textSoft,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 17,
     fontWeight: "600"
   },
   learningPathRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 14,
+    marginTop: 10,
     flexWrap: "wrap",
-    gap: 6
+    gap: 4
   },
   learningPathStepWrap: {
     flexDirection: "row",
@@ -2219,11 +2255,11 @@ const styles = StyleSheet.create({
   },
   learningPathStep: {
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.75)",
-    minWidth: 58
+    minWidth: 52
   },
   learningPathStepLocked: {
     opacity: 0.55
@@ -2233,34 +2269,30 @@ const styles = StyleSheet.create({
     borderColor: THEME.gold
   },
   learningPathStepEmoji: {
-    fontSize: 20
+    fontSize: 18
   },
   learningPathStepLabel: {
     marginTop: 2,
     color: THEME.text,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800"
   },
   learningPathStepBadge: {
-    fontSize: 10
+    fontSize: 9
   },
   learningPathArrow: {
     color: THEME.textSoft,
-    fontSize: 16,
-    fontWeight: "800"
-  },
-  learningPathArrow: {
-    color: THEME.textSoft,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "800"
   },
   classesPromo: {
-    marginTop: 8,
-    padding: 18,
-    borderRadius: 24,
+    marginTop: 0,
+    marginBottom: 0,
+    padding: 14,
+    borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.8)"
   },
@@ -2269,31 +2301,31 @@ const styles = StyleSheet.create({
   },
   classesPromoTitle: {
     color: THEME.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "900"
   },
   classesPromoText: {
-    marginTop: 4,
+    marginTop: 3,
     color: THEME.textSoft,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: "600"
   },
   classesPromoButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     backgroundColor: "#6366F1"
   },
   classesPromoButtonText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "900"
   },
   classesIntro: {
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 16
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 12
   },
   classesIntroTitle: {
     color: THEME.text,
@@ -2308,20 +2340,23 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
   classList: {
-    gap: 14
+    gap: 10
   },
   classCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 18,
-    borderRadius: 22,
-    gap: 14,
+    padding: 14,
+    borderRadius: 16,
+    gap: 12,
     overflow: "hidden",
-    minHeight: 110
+    minHeight: 88
+  },
+  classCardLocked: {
+    opacity: 0.92
   },
   classCardLock: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(30,58,95,0.45)",
+    backgroundColor: "rgba(15,23,42,0.62)",
     alignItems: "center",
     justifyContent: "center",
     padding: 12,
@@ -2338,32 +2373,32 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   classCardEmoji: {
-    fontSize: 40
+    fontSize: 32
   },
   classCardBody: {
     flex: 1
   },
   classCardTitle: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "900"
   },
   classCardSubtitle: {
-    marginTop: 4,
+    marginTop: 2,
     color: "rgba(255,255,255,0.9)",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600"
   },
   classCardMeta: {
-    marginTop: 8,
+    marginTop: 6,
     color: "rgba(255,255,255,0.85)",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   lessonProgressRow: {
     flexDirection: "row",
-    gap: 6,
-    marginBottom: 14,
+    gap: 5,
+    marginBottom: 12,
     justifyContent: "center"
   },
   lessonProgressDot: {
@@ -2380,26 +2415,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#3B82F6"
   },
   lessonPanel: {
-    padding: 22,
-    borderRadius: 28,
+    padding: 14,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: "#FFFFFF",
-    gap: 14
+    gap: 10
   },
   lessonSlideEmoji: {
-    fontSize: 48,
+    fontSize: 36,
     textAlign: "center"
   },
   lessonSlideTitle: {
     color: THEME.text,
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: "900",
     textAlign: "center"
   },
   lessonSlideBody: {
     color: THEME.textSoft,
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 15,
+    lineHeight: 22,
     fontWeight: "600",
     textAlign: "center"
   },
@@ -2542,67 +2577,71 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   lessonNextButton: {
-    marginTop: 8,
-    borderRadius: 22,
+    marginTop: 6,
+    borderRadius: 16,
     overflow: "hidden"
   },
   lessonNextButtonDisabled: {
     opacity: 0.85
   },
   lessonNextGradient: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: "center"
   },
   lessonNextText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "900"
   },
   lessonFinishBlock: {
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 12
+    gap: 8,
+    paddingVertical: 8
   },
   lessonFinishEmoji: {
-    fontSize: 64
+    fontSize: 44
   },
   lessonFinishTitle: {
     color: THEME.text,
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "900"
   },
   lessonFinishBody: {
     color: THEME.textSoft,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 21,
     fontWeight: "600",
     textAlign: "center"
   },
   gameCardLockedWrap: {
     opacity: 0.72
   },
+  menuGameCardWrap: {
+    alignSelf: "stretch",
+    width: "100%"
+  },
   gameCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 18,
-    borderRadius: 24,
-    gap: 16,
+    padding: 14,
+    borderRadius: 16,
+    gap: 12,
     position: "relative",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4
   },
   gameCardScoreBadge: {
     position: "absolute",
-    top: 12,
-    right: 12,
+    top: 10,
+    right: 10,
     alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 14,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.35)",
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.5)"
@@ -2615,18 +2654,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   gameCardScoreValue: {
-    marginTop: 2,
+    marginTop: 1,
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "900"
   },
   gameCardLevelBadge: {
     position: "absolute",
-    top: 12,
-    left: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
+    top: 10,
+    left: 10,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    borderRadius: 10,
     backgroundColor: "rgba(30,58,95,0.35)"
   },
   gameCardLevelText: {
@@ -2653,60 +2692,60 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   gameCardEmojiWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.35)",
     alignItems: "center",
     justifyContent: "center"
   },
   gameCardEmoji: {
-    fontSize: 36
+    fontSize: 28
   },
   gameCardContent: {
     flex: 1,
-    paddingRight: 52
+    paddingRight: 44
   },
   gameCardTitle: {
     color: "#FFFFFF",
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "900",
     textShadowColor: "rgba(0,0,0,0.15)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2
   },
   gameCardDescription: {
-    marginTop: 6,
+    marginTop: 4,
     color: "rgba(255,255,255,0.92)",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "600"
   },
   playChip: {
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.3)"
   },
   gameCardFooter: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8
+    gap: 6
   },
   menuScoreSummary: {
-    marginTop: 16,
-    marginBottom: 4,
-    padding: 16,
-    borderRadius: 22,
+    marginTop: 12,
+    marginBottom: 0,
+    padding: 12,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: "#FFFFFF",
     shadowColor: "#F59E0B",
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3
   },
   menuScoreSummaryHeader: {
     flexDirection: "row",
@@ -2742,8 +2781,8 @@ const styles = StyleSheet.create({
   gameHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 16
+    gap: 10,
+    marginBottom: 12
   },
   gameTitleBlock: {
     flex: 1,
@@ -2755,40 +2794,40 @@ const styles = StyleSheet.create({
     flex: 1
   },
   gameEmoji: {
-    fontSize: 32
+    fontSize: 28
   },
   gameTitle: {
     color: THEME.text,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "900",
     flexShrink: 1
   },
   gameLevelBand: {
     marginTop: 2,
     color: THEME.textSoft,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700"
   },
   backButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 999,
     backgroundColor: "#FFFFFF",
     borderWidth: 2,
     borderColor: "#BFDBFE",
     shadowColor: "#93C5FD",
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2
   },
   backButtonText: {
     color: "#2563EB",
     fontWeight: "900",
-    fontSize: 14
+    fontSize: 13
   },
   progressSection: {
-    marginBottom: 16
+    marginBottom: 12
   },
   progressLabels: {
     flexDirection: "row",
@@ -2802,7 +2841,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase"
   },
   loadingBarContainer: {
-    height: 14,
+    height: 10,
     borderRadius: 999,
     overflow: "hidden",
     backgroundColor: "rgba(255,255,255,0.7)",
@@ -2819,15 +2858,15 @@ const styles = StyleSheet.create({
     borderRadius: 999
   },
   panel: {
-    padding: 20,
-    borderRadius: 32,
-    borderWidth: 3,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 2,
     borderColor: "#FFFFFF",
     shadowColor: "#FBBF24",
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 10
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6
   },
   statusBar: {
     flexDirection: "row",
@@ -2835,14 +2874,14 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    minHeight: 82,
-    padding: 10,
-    borderRadius: 18,
+    minHeight: 72,
+    padding: 8,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.8)"
   },
   statEmoji: {
-    fontSize: 20,
+    fontSize: 18,
     marginBottom: 2
   },
   label: {
@@ -2853,131 +2892,132 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   statValue: {
-    marginTop: 4,
+    marginTop: 2,
     color: THEME.text,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "900"
   },
   targetCard: {
-    minHeight: 220,
-    marginTop: 16,
-    padding: 20,
-    borderRadius: 28,
+    minHeight: 180,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.9)"
   },
   targetLabel: {
     color: THEME.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900"
   },
   dotsGrid: {
-    marginTop: 16,
+    marginTop: 12,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 14,
+    gap: 10,
     justifyContent: "center",
     alignItems: "center",
-    minHeight: 140
+    minHeight: 120
   },
   dot: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 3,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
     borderColor: "rgba(255,255,255,0.8)",
     shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
     overflow: "hidden"
   },
   dotShine: {
     position: "absolute",
-    top: 8,
-    left: 10,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    top: 6,
+    left: 8,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: "rgba(255,255,255,0.55)"
   },
   questionCard: {
-    marginTop: 16,
-    borderRadius: 24,
+    marginTop: 12,
+    borderRadius: 18,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3
   },
   questionGradient: {
-    paddingVertical: 28,
-    paddingHorizontal: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center"
   },
   questionText: {
     color: "#FFFFFF",
-    fontSize: 42,
+    fontSize: 36,
     fontWeight: "900",
     textShadowColor: "rgba(0,0,0,0.15)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4
   },
   compareQuestionText: {
-    fontSize: 48,
-    letterSpacing: 4
+    fontSize: 40,
+    letterSpacing: 3
   },
   sequenceQuestionText: {
-    fontSize: 34,
+    fontSize: 28,
     letterSpacing: 1
   },
   questionHint: {
     marginTop: 4,
     color: "rgba(255,255,255,0.85)",
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "800"
   },
   prompt: {
-    marginTop: 20,
+    marginTop: 14,
     textAlign: "center",
     color: THEME.text,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "800"
   },
   choices: {
-    marginTop: 16,
+    marginTop: 12,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 10,
     justifyContent: "space-between"
   },
   choiceWrapper: {
     width: "47%",
     shadowColor: "#60A5FA",
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3
   },
   choiceButton: {
-    minHeight: 100,
+    minHeight: 84,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: "#FFFFFF",
-    borderRadius: 24,
+    borderRadius: 18,
     backgroundColor: "#E0F2FE",
     shadowColor: "#38BDF8",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 3
   },
   choiceText: {
     color: THEME.text,
-    fontSize: 46,
+    fontSize: 36,
     fontWeight: "900"
   },
   correctChoice: {
@@ -3006,14 +3046,14 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   levelSelectPanel: {
-    padding: 20,
-    borderRadius: 28,
+    padding: 16,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: "#FFFFFF"
   },
   levelSelectTitle: {
     color: THEME.text,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "900"
   },
   levelSelectSubtitle: {
@@ -3119,7 +3159,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   starIcon: {
-    fontSize: 44
+    fontSize: 32
   },
   starIconSmall: {
     fontSize: 16
@@ -3141,15 +3181,15 @@ const styles = StyleSheet.create({
     elevation: 6
   },
   playAgainGradient: {
-    minHeight: 72,
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10
+    gap: 8
   },
   playAgainText: {
     color: "#FFFFFF",
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "900",
     textShadowColor: "rgba(0,0,0,0.15)",
     textShadowOffset: { width: 0, height: 1 },
@@ -3157,20 +3197,20 @@ const styles = StyleSheet.create({
   },
   playIcon: {
     color: "#FFFFFF",
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "900"
   },
   messageBox: {
-    minHeight: 64,
-    marginTop: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    minHeight: 52,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     borderWidth: 2,
     borderColor: "#FDE68A",
-    borderRadius: 22,
+    borderRadius: 16,
     backgroundColor: "#FFFBEB"
   },
   successMessage: {
@@ -3195,9 +3235,9 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }]
   },
   dashboardFab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#FFFFFF",
     borderWidth: 2,
     borderColor: "#FDE68A",
@@ -3210,14 +3250,14 @@ const styles = StyleSheet.create({
     elevation: 4
   },
   dashboardFabEmoji: {
-    fontSize: 26
+    fontSize: 22
   },
   dashboardHero: {
-    padding: 22,
-    borderRadius: 28,
-    borderWidth: 3,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 2,
     borderColor: "#FFFFFF",
-    marginBottom: 20,
+    marginBottom: 16,
     shadowColor: "#FBBF24",
     shadowOpacity: 0.15,
     shadowRadius: 16,
@@ -3226,7 +3266,7 @@ const styles = StyleSheet.create({
   },
   dashboardHeroTitle: {
     color: THEME.text,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "900"
   },
   dashboardHeroSubtitle: {
@@ -3238,15 +3278,15 @@ const styles = StyleSheet.create({
   },
   dashboardStatsRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 18
+    gap: 8,
+    marginTop: 12
   },
   dashboardStatPill: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.75)",
     borderWidth: 2,
     borderColor: "#FFFFFF"
@@ -3255,9 +3295,9 @@ const styles = StyleSheet.create({
     fontSize: 22
   },
   dashboardStatValue: {
-    marginTop: 6,
+    marginTop: 4,
     color: THEME.text,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "900"
   },
   dashboardStatLabel: {
@@ -3360,9 +3400,9 @@ const styles = StyleSheet.create({
   menuRewardsBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 22,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: "#FFFFFF"
   },
@@ -3371,12 +3411,12 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   menuRewardEmoji: {
-    fontSize: 24
+    fontSize: 20
   },
   menuRewardValue: {
-    marginTop: 4,
+    marginTop: 2,
     color: THEME.text,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "900"
   },
   menuRewardLabel: {
@@ -3387,33 +3427,38 @@ const styles = StyleSheet.create({
     textTransform: "uppercase"
   },
   menuRewardDivider: {
-    width: 2,
-    height: 48,
+    width: 1,
+    height: 40,
     borderRadius: 1,
     backgroundColor: "rgba(255,255,255,0.8)"
   },
+  menuFooter: {
+    marginTop: 20,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(148,163,184,0.25)"
+  },
   menuResetButton: {
-    marginBottom: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    borderWidth: 2,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: "#FCA5A5",
     backgroundColor: "#FEF2F2",
     alignItems: "center",
-    gap: 4
+    gap: 3
   },
   menuResetButtonText: {
     color: "#B91C1C",
-    fontSize: 15,
-    fontWeight: "900"
+    fontSize: 14,
+    fontWeight: "800"
   },
   menuResetButtonHint: {
     color: "#991B1B",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     textAlign: "center",
-    lineHeight: 17
+    lineHeight: 15
   },
   sessionRewardBox: {
     width: "100%",
@@ -3499,9 +3544,9 @@ const styles = StyleSheet.create({
   },
   badgeCard: {
     width: "47%",
-    minHeight: 148,
-    padding: 14,
-    borderRadius: 20,
+    minHeight: 128,
+    padding: 12,
+    borderRadius: 16,
     backgroundColor: "#FFFFFF",
     borderWidth: 2,
     borderColor: "#FDE68A",
