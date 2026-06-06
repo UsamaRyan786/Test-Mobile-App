@@ -1,3 +1,5 @@
+import { attachLessonIds } from "./lessonMap";
+
 const MIN_NUMBER = 1;
 const MAX_NUMBER = 10;
 
@@ -407,6 +409,96 @@ function buildDivideSimpleRound(config = {}) {
   };
 }
 
+function buildBodmasRound(config = {}) {
+  const kind =
+    config.kind ||
+    ["bracket_add", "bracket_mul", "md_first", "md_sub", "div_add", "full"][randomInt(0, 5)];
+
+  if (kind === "bracket_add") {
+    const a = randomInt(1, 4);
+    const b = randomInt(1, 4);
+    const c = randomInt(1, 5);
+    const target = a + b + c;
+    return {
+      label: `(${a} + ${b}) + ${c}`,
+      target,
+      choices: makeChoicesFromRange(target, Math.max(1, target - 4), target + 6)
+    };
+  }
+
+  if (kind === "bracket_mul") {
+    const a = randomInt(1, 4);
+    const b = randomInt(1, 4);
+    const c = randomInt(2, 4);
+    const target = (a + b) * c;
+    return {
+      label: `(${a} + ${b}) × ${c}`,
+      target,
+      choices: makeChoicesFromRange(target, Math.max(1, target - 5), target + 8)
+    };
+  }
+
+  if (kind === "md_first") {
+    const a = randomInt(1, 6);
+    const b = randomInt(2, 4);
+    const c = randomInt(2, 4);
+    const target = a + b * c;
+    return {
+      label: `${a} + ${b} × ${c}`,
+      target,
+      choices: makeChoicesFromRange(target, Math.max(1, target - 5), target + 8)
+    };
+  }
+
+  if (kind === "md_sub") {
+    const b = randomInt(2, 4);
+    const c = randomInt(2, 4);
+    const target = randomInt(2, 8);
+    const a = target + b * c;
+    return {
+      label: `${a} − ${b} × ${c}`,
+      target,
+      choices: makeChoicesFromRange(target, Math.max(0, target - 4), target + 6)
+    };
+  }
+
+  if (kind === "div_add") {
+    const divisor = randomInt(2, 4);
+    const quotient = randomInt(2, 5);
+    const add = randomInt(1, 4);
+    const dividend = divisor * quotient;
+    const target = quotient + add;
+    return {
+      label: `${dividend} ÷ ${divisor} + ${add}`,
+      target,
+      choices: makeChoicesFromRange(target, Math.max(1, target - 3), target + 6)
+    };
+  }
+
+  if (kind === "full") {
+    const a = randomInt(1, 3);
+    const b = randomInt(1, 3);
+    const c = randomInt(2, 3);
+    const d = randomInt(1, 4);
+    const target = (a + b) * c + d;
+    return {
+      label: `(${a} + ${b}) × ${c} + ${d}`,
+      target,
+      choices: makeChoicesFromRange(target, Math.max(1, target - 6), target + 10)
+    };
+  }
+
+  const a = randomInt(2, 5);
+  const b = randomInt(2, 4);
+  const c = randomInt(2, 4);
+  const target = a + b * c;
+  return {
+    label: `${a} + ${b} × ${c}`,
+    target,
+    choices: makeChoicesFromRange(target, Math.max(1, target - 5), target + 8)
+  };
+}
+
 const ROUND_BUILDERS = {
   dots: buildDotsRound,
   addition: buildAdditionRound,
@@ -428,7 +520,8 @@ const ROUND_BUILDERS = {
   multiplyBy: buildMultiplyByRound,
   divideSimple: buildDivideSimpleRound,
   subSame: buildSubSameRound,
-  countBack: buildCountBackRound
+  countBack: buildCountBackRound,
+  bodmas: buildBodmasRound
 };
 
 const BASE_GAMES = [
@@ -439,11 +532,11 @@ const BASE_GAMES = [
   defineGame(4, { id: "timesTables", category: "multiplication", title: "Times Table Tower", description: "Master bigger times tables from 2 to 9!", emoji: "🗼", roundType: "multiplication", config: { aMax: 9, bMax: 9 }, instruction: "Solve the times table!", targetLabel: "✖️ Times tables", prompt: "What's the product?" }),
   defineGame(5, { id: "division", category: "division", title: "Division Desert", description: "Share numbers equally with division!", emoji: "🏜️", roundType: "division", instruction: "How many in each group?", targetLabel: "➗ Divide this", prompt: "What's the answer?" }),
   defineGame(6, { id: "mixed", category: "mixed", title: "Arithmetic Arena", description: "Add, subtract, multiply, and divide — all mixed up!", emoji: "⚔️", roundType: "mixed", instruction: "Solve the problem — any operation!", targetLabel: "🧮 All arithmetic", prompt: "Pick the correct answer!" }),
-  defineGame(7, { id: "compare", category: "counting", title: "Compare Castle", description: "Find the bigger number between two friends!", emoji: "🏰", roundType: "compare", display: "compare", wideText: true, showEquals: false, instruction: "Pick the bigger number!", targetLabel: "⚖️ Which is bigger?", prompt: "Tap the bigger number!" }),
+  defineGame(7, { id: "compare", category: "compare", title: "Compare Castle", description: "Find the bigger number between two friends!", emoji: "🏰", roundType: "compare", display: "compare", wideText: true, showEquals: false, instruction: "Pick the bigger number!", targetLabel: "⚖️ Which is bigger?", prompt: "Tap the bigger number!" }),
   defineGame(8, { id: "sequence", category: "patterns", title: "Number Ninja", description: "Spot the pattern and find what comes next!", emoji: "🥷", roundType: "sequence", display: "sequence", sequenceText: true, showEquals: false, instruction: "What number comes next?", targetLabel: "🔮 Complete the pattern", prompt: "What comes next in the pattern?" }),
   defineGame(9, { id: "makeTen", category: "addition", title: "Make Ten Magic", description: "Find the missing number to make ten!", emoji: "✨", roundType: "makeTotal", config: { total: 10 }, display: "sequence", sequenceText: true, instruction: "Find the missing number!", targetLabel: "🪄 Make ten!", prompt: "What number makes ten?" }),
   defineGame(10, { id: "doubles", category: "multiplication", title: "Double Trouble", description: "Double a number and find the answer!", emoji: "🪞", roundType: "double", instruction: "What is the double?", targetLabel: "🪞 Double it!", prompt: "What's the double?" }),
-  defineGame(11, { id: "smaller", category: "counting", title: "Smaller Swamp", description: "Find the smaller number between two!", emoji: "🐸", roundType: "compare", config: { pick: "min" }, display: "compare", wideText: true, showEquals: false, instruction: "Pick the smaller number!", targetLabel: "🐸 Which is smaller?", prompt: "Tap the smaller number!" }),
+  defineGame(11, { id: "smaller", category: "compare", title: "Smaller Swamp", description: "Find the smaller number between two!", emoji: "🐸", roundType: "compare", config: { pick: "min" }, display: "compare", wideText: true, showEquals: false, instruction: "Pick the smaller number!", targetLabel: "🐸 Which is smaller?", prompt: "Tap the smaller number!" }),
   defineGame(12, { id: "missingAdd", category: "mixed", title: "Missing Mystery", description: "Find the hidden number in +, −, ×, or ÷ problems!", emoji: "🔍", roundType: "missing", display: "sequence", sequenceText: true, showEquals: false, instruction: "Find the hidden number!", targetLabel: "🔍 Find the missing piece", prompt: "What number is missing?" }),
   defineGame(13, { id: "countBack", category: "patterns", title: "Countdown Cave", description: "Count backwards and find what comes next!", emoji: "🦇", roundType: "countBack", display: "sequence", sequenceText: true, showEquals: false, instruction: "Count backwards — what's next?", targetLabel: "⏪ Count backwards", prompt: "What number comes next?" }),
   defineGame(14, { id: "beforeAfter", category: "patterns", title: "Before & After", description: "What number comes before or after?", emoji: "🎢", roundType: "beforeAfter", display: "sequence", sequenceText: true, showEquals: false, instruction: "Pick the right number!", targetLabel: "🎢 Before or after?", prompt: "Choose the correct number!" })
@@ -483,12 +576,12 @@ const EXTRA_GAME_DEFS = [
   { id: "countBack2", category: "patterns", title: "Count Back 2s", description: "Go backwards by 2!", roundType: "countBack", display: "sequence", sequenceText: true, showEquals: false },
   { id: "dotsTiny", category: "counting", title: "Tiny Dot Garden", description: "Count just a few dots!", roundType: "dots", config: { min: 1, max: 5 }, display: "dots", showEquals: false, instruction: "Count the dots!", targetLabel: "🔢 Count these dots", prompt: "How many dots?" },
   { id: "dotsBig", category: "counting", title: "Big Dot Field", description: "Count up to 15 dots!", roundType: "dots", config: { min: 5, max: 15 }, display: "dots", showEquals: false, instruction: "Count all the dots!", targetLabel: "🔢 Count these dots", prompt: "How many dots?" },
-  { id: "compareBig", category: "counting", title: "Big Compare Bay", description: "Compare numbers up to 20!", roundType: "compare", config: { max: 20 }, display: "compare", wideText: true, showEquals: false },
+  { id: "compareBig", category: "compare", title: "Big Compare Bay", description: "Compare numbers up to 20!", roundType: "compare", config: { max: 20 }, display: "compare", wideText: true, showEquals: false },
   { id: "betweenNumbers", category: "patterns", title: "In Between Island", description: "What number sits in the middle?", roundType: "beforeAfter", config: { mode: "between" }, display: "sequence", sequenceText: true, showEquals: false },
   { id: "beforeOnly", category: "patterns", title: "Before Bridge", description: "What comes before?", roundType: "beforeAfter", config: { mode: "before" }, display: "sequence", sequenceText: true, showEquals: false },
   { id: "afterOnly", category: "patterns", title: "After Alley", description: "What comes after?", roundType: "beforeAfter", config: { mode: "after" }, display: "sequence", sequenceText: true, showEquals: false },
-  { id: "pickOdd", category: "counting", title: "Odd Owl", description: "Pick the odd number!", roundType: "parity", config: { parity: "odd" }, display: "word", showEquals: false, instruction: "Find the odd number!", targetLabel: "🦉 Pick odd", prompt: "Which is odd?" },
-  { id: "pickEven", category: "counting", title: "Even Elephant", description: "Pick the even number!", roundType: "parity", config: { parity: "even" }, display: "word", showEquals: false, instruction: "Find the even number!", targetLabel: "🐘 Pick even", prompt: "Which is even?" },
+  { id: "pickOdd", category: "evenOdd", title: "Odd Owl", description: "Pick the odd number!", roundType: "parity", config: { parity: "odd" }, display: "word", showEquals: false, instruction: "Find the odd number!", targetLabel: "🦉 Pick odd", prompt: "Which is odd?" },
+  { id: "pickEven", category: "evenOdd", title: "Even Elephant", description: "Pick the even number!", roundType: "parity", config: { parity: "even" }, display: "word", showEquals: false, instruction: "Find the even number!", targetLabel: "🐘 Pick even", prompt: "Which is even?" },
   { id: "doubleBig", category: "multiplication", title: "Double Dare", description: "Double bigger numbers!", roundType: "double", config: { min: 5, max: 12, choiceMax: 24 } },
   { id: "addFriends6", category: "addition", title: "Six Pack Sum", description: "Practice adding up to six!", roundType: "addition", config: { aMax: 6, bMax: 6 } },
   { id: "addFriends8", category: "addition", title: "Eight Great Add", description: "Practice adding up to eight!", roundType: "addition", config: { aMax: 8, bMax: 8 } },
@@ -497,7 +590,15 @@ const EXTRA_GAME_DEFS = [
   { id: "mathMarathon", category: "challenge", title: "Math Marathon", description: "Every operation — ultimate mix!", roundType: "mixed" },
   { id: "speedAdd", category: "challenge", title: "Speedy Sums", description: "Fast small additions!", roundType: "addition", config: { aMax: 6, bMax: 6, choiceMax: 12 } },
   { id: "brainTrainer", category: "challenge", title: "Brain Trainer", description: "Missing numbers in all operations!", roundType: "missing" },
-  { id: "patternPro", category: "challenge", title: "Pattern Pro", description: "Tricky number sequences!", roundType: "sequence", config: { stepMin: 2, stepMax: 4 }, display: "sequence", sequenceText: true, showEquals: false }
+  { id: "patternPro", category: "challenge", title: "Pattern Pro", description: "Tricky number sequences!", roundType: "sequence", config: { stepMin: 2, stepMax: 4 }, display: "sequence", sequenceText: true, showEquals: false },
+  { id: "bodmasOrderQuiz", category: "bodmas", title: "BODMAS Order Quiz", description: "Multiply before you add!", roundType: "bodmas", config: { kind: "md_first" }, wideText: true, sequenceText: true, instruction: "Use BODMAS order!", targetLabel: "📐 BODMAS order", prompt: "What is the answer?" },
+  { id: "bodmasBracketBasics", category: "bodmas", title: "Bracket Basics", description: "Solve the bracket first!", roundType: "bodmas", config: { kind: "bracket_add" }, wideText: true, sequenceText: true, instruction: "Do brackets first!", targetLabel: "🪝 Brackets first", prompt: "What is the answer?" },
+  { id: "bodmasBracketTimes", category: "bodmas", title: "Bracket Times", description: "(a + b) × c — brackets then multiply!", roundType: "bodmas", config: { kind: "bracket_mul" }, wideText: true, sequenceText: true, instruction: "Bracket first, then ×!", targetLabel: "🪝 Bracket ×", prompt: "What is the answer?" },
+  { id: "bodmasMulFirst", category: "bodmas", title: "Multiply First", description: "× before + in BODMAS!", roundType: "bodmas", config: { kind: "md_first" }, wideText: true, sequenceText: true, instruction: "Multiply before adding!", targetLabel: "⏩ × before +", prompt: "What is the answer?" },
+  { id: "bodmasDivFirst", category: "bodmas", title: "Divide First", description: "÷ before + in BODMAS!", roundType: "bodmas", config: { kind: "div_add" }, wideText: true, sequenceText: true, instruction: "Divide before adding!", targetLabel: "⏩ ÷ before +", prompt: "What is the answer?" },
+  { id: "bodmasSubtractMix", category: "bodmas", title: "Subtract Mix", description: "Subtract after multiplying!", roundType: "bodmas", config: { kind: "md_sub" }, wideText: true, sequenceText: true, instruction: "× before −!", targetLabel: "⏩ × before −", prompt: "What is the answer?" },
+  { id: "bodmasFullMix", category: "bodmas", title: "BODMAS Mix", description: "Brackets and ×÷ together!", roundType: "bodmas", config: { kind: "full" }, wideText: true, sequenceText: true, instruction: "Full BODMAS!", targetLabel: "🏆 Full BODMAS", prompt: "What is the answer?" },
+  { id: "bodmasMaster", category: "bodmas", title: "BODMAS Master", description: "Every BODMAS rule mixed!", roundType: "bodmas", wideText: true, sequenceText: true, instruction: "Use the full BODMAS rule!", targetLabel: "👑 BODMAS Master", prompt: "What is the answer?" }
 ];
 
 const TABLE_GAMES = [2, 3, 4, 5, 6, 7, 8, 9].map((n, i) =>
@@ -530,17 +631,21 @@ const EXTRA_GAMES = EXTRA_GAME_DEFS.map((fields, index) =>
 );
 
 export const GAME_CATEGORIES = [
-  { id: "counting", label: "🔢 Counting & Compare" },
+  { id: "counting", label: "🔢 Counting" },
+  { id: "compare", label: "⚖️ Compare" },
+  { id: "evenOdd", label: "🦉 Even & Odd" },
   { id: "addition", label: "➕ Addition" },
   { id: "subtraction", label: "➖ Subtraction" },
   { id: "multiplication", label: "✖️ Multiplication" },
   { id: "division", label: "➗ Division" },
   { id: "patterns", label: "🔮 Patterns" },
   { id: "mixed", label: "🎲 Mixed" },
+  { id: "bodmas", label: "📐 BODMAS" },
   { id: "challenge", label: "🏆 Challenge" }
 ];
 
-export const GAMES = [...BASE_GAMES, ...TABLE_GAMES, ...EXTRA_GAMES];
+const RAW_GAMES = [...BASE_GAMES, ...TABLE_GAMES, ...EXTRA_GAMES];
+export const GAMES = attachLessonIds(RAW_GAMES);
 
 const GAME_MAP = Object.fromEntries(GAMES.map((game) => [game.id, game]));
 

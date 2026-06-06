@@ -22,7 +22,6 @@ import {
   GAMES,
   createRound,
   getGameMeta,
-  getGamesByCategory,
   isDotsGame,
   showEqualsHint,
   usesWideQuestionText,
@@ -42,9 +41,7 @@ import {
   getLevelRecord,
   isLevelUnlocked,
   isTierUnlocked,
-  isCategoryUnlocked,
   isGameUnlocked,
-  getCategoryUnlockHint,
   getPathStepStatus,
   getScaledConfig,
   recordLevelResult,
@@ -65,6 +62,7 @@ import {
   completeLesson,
   getCompletedLessonCount
 } from "./lessons";
+import { getGameUnlockHint, getLessonGameSections } from "./lessonMap";
 
 const MAX_ROUNDS = 12;
 const HIGH_SCORES_KEY = "@mathGarden/highScores";
@@ -863,7 +861,7 @@ function ClassCard({ lesson, progress, index, onPress }) {
             <Text style={styles.classCardSubtitle}>{lesson.subtitle}</Text>
             <Text style={styles.classCardMeta}>
               🎧 {lesson.slides.length} steps ·{" "}
-              {completed ? "✅ Completed" : unlocked ? "Tap to listen →" : "Locked"}
+              {completed ? "✅ Tap to replay →" : unlocked ? "Tap to listen →" : "Locked"}
             </Text>
           </View>
         </LinearGradient>
@@ -944,6 +942,7 @@ export default function App() {
   const [lessonSlide, setLessonSlide] = useState(0);
   const [lessonSlideKey, setLessonSlideKey] = useState(0);
   const [lessonFinished, setLessonFinished] = useState(false);
+  const [lessonReplay, setLessonReplay] = useState(false);
 
   const currentHighScore = highScores[selectedGame.id]?.best ?? 0;
   const unlockedBadgeCount = Object.keys(rewards.badges).length;
@@ -1117,7 +1116,9 @@ export default function App() {
     }
     stopClassroomSpeech();
     setSelectedLesson(lesson);
-    setLessonSlide(getLessonProgress(progress, lesson.id).slide || 0);
+    const completed = isLessonComplete(progress, lesson.id);
+    setLessonReplay(completed);
+    setLessonSlide(completed ? 0 : getLessonProgress(progress, lesson.id).slide || 0);
     setLessonSlideKey((key) => key + 1);
     setLessonFinished(false);
     setScreen("lesson");
@@ -1127,26 +1128,32 @@ export default function App() {
     stopClassroomSpeech();
     const lesson = selectedLesson;
     const isLast = lessonSlide >= lesson.slides.length - 1;
+    const replaying = lessonReplay || isLessonComplete(progress, lesson.id);
 
     if (isLast) {
-      const updated = completeLesson(progress, lesson.id);
-      setProgress(updated);
-      saveProgressData(updated);
+      if (!replaying) {
+        const updated = completeLesson(progress, lesson.id);
+        setProgress(updated);
+        saveProgressData(updated);
+      }
       setLessonFinished(true);
       speakLesson(buildLessonOutro(lesson));
       return;
     }
 
     const nextSlide = lessonSlide + 1;
-    const updated = recordLessonSlide(progress, lesson.id, nextSlide);
-    setProgress(updated);
-    saveProgressData(updated);
+    if (!replaying) {
+      const updated = recordLessonSlide(progress, lesson.id, nextSlide);
+      setProgress(updated);
+      saveProgressData(updated);
+    }
     setLessonSlide(nextSlide);
     setLessonSlideKey((key) => key + 1);
   }
 
   function replayLesson() {
     stopClassroomSpeech();
+    setLessonReplay(true);
     setLessonSlide(0);
     setLessonSlideKey((key) => key + 1);
     setLessonFinished(false);
@@ -1305,9 +1312,9 @@ export default function App() {
             </Text>
           </View>
 
-          {getPlayableCategoryLabels(progress).length > 0 ? (
+          {getPlayableCategoryLabels(progress, GAMES).length > 0 ? (
             <Text style={styles.playableHint}>
-              🎮 Unlocked games: {getPlayableCategoryLabels(progress).join(" · ")}
+              🎮 Unlocked games: {getPlayableCategoryLabels(progress, GAMES).join(" · ")}
             </Text>
           ) : (
             <Text style={styles.playableHint}>🎧 Start with Counting Class to unlock your first games!</Text>
@@ -1336,27 +1343,37 @@ export default function App() {
             )}
           </LinearGradient>
 
-          {getGamesByCategory().map((section) => {
-            const categoryOpen = isCategoryUnlocked(progress, section.id);
-            const unlockHint = getCategoryUnlockHint(section.id, progress);
-            if (!categoryOpen && unlockHint) {
+          {getLessonGameSections(GAMES).map((section) => {
+            const sectionLabel = `${section.emoji} ${section.menuLabel || section.title.replace(" Class", "")}`;
+            const lessonComplete = isLessonComplete(progress, section.id);
+            const lessonAccessible = isLessonUnlocked(progress, section.id);
+            const sectionHint = !lessonAccessible
+              ? getLessonUnlockHint(section.id)
+              : !lessonComplete
+                ? `Finish ${section.title} to play these games! 🎧`
+                : null;
+
+            if (!lessonAccessible && sectionHint) {
               return (
                 <View key={section.id} style={styles.gameCategorySection}>
                   <View style={styles.gameCategoryHeader}>
-                    <Text style={styles.gameCategoryTitle}>{section.label}</Text>
-                    <Text style={styles.gameCategoryLockHint}>🔒 {unlockHint}</Text>
+                    <Text style={styles.gameCategoryTitle}>{sectionLabel}</Text>
+                    <Text style={styles.gameCategoryLockHint}>🔒 {sectionHint}</Text>
                   </View>
                 </View>
               );
             }
-            if (!categoryOpen) {
+            if (!lessonAccessible) {
               return null;
             }
 
             return (
               <View key={section.id} style={styles.gameCategorySection}>
                 <View style={styles.gameCategoryHeader}>
-                  <Text style={styles.gameCategoryTitle}>{section.label}</Text>
+                  <Text style={styles.gameCategoryTitle}>{sectionLabel}</Text>
+                  {!lessonComplete && sectionHint ? (
+                    <Text style={styles.gameCategoryLockHint}>🔒 {sectionHint}</Text>
+                  ) : null}
                 </View>
                 <View style={styles.gameCategoryList}>
                   {section.games.map((game) => {
@@ -1364,6 +1381,7 @@ export default function App() {
                     const index = GAMES.findIndex((item) => item.id === game.id);
                     const gameProgress = getGameProgress(progress, game.id);
                     const locked = !isGameUnlocked(progress, game);
+                    const gameHint = locked ? getGameUnlockHint(progress, game) : null;
                     const levelLabel = isTierUnlocked(progress, game.id, 2)
                       ? `Lv ${gameProgress.maxLevel}/10 · ★ Advanced`
                       : `Lv ${gameProgress.maxLevel}/${LEVELS_PER_TIER}`;
@@ -1376,7 +1394,7 @@ export default function App() {
                         bestScore={record.best}
                         hasPlayed={record.plays > 0}
                         locked={locked}
-                        unlockHint={unlockHint || "Complete earlier steps first!"}
+                        unlockHint={gameHint || sectionHint || "Complete the class first!"}
                         levelLabel={levelLabel}
                         onPress={() => selectGame(game)}
                       />
@@ -1722,8 +1740,8 @@ export default function App() {
             <Text style={styles.classesIntroTitle}>Listen like a real classroom</Text>
             <Text style={styles.classesIntroText}>
               Teacher Maya speaks each lesson aloud while drawing on the whiteboard. Finish a
-              class to unlock only those games — for example, finish Addition Class to play
-              addition games only.
+              class to unlock its games. You can replay any finished class anytime — it will not
+              lock or change your games.
             </Text>
           </LinearGradient>
 
@@ -1804,11 +1822,14 @@ export default function App() {
               </>
             ) : (
               <View style={styles.lessonFinishBlock}>
-                <Text style={styles.lessonFinishEmoji}>🎓</Text>
-                <Text style={styles.lessonFinishTitle}>Class Complete!</Text>
+                <Text style={styles.lessonFinishEmoji}>{lessonReplay ? "↺" : "🎓"}</Text>
+                <Text style={styles.lessonFinishTitle}>
+                  {lessonReplay ? "Great Review!" : "Class Complete!"}
+                </Text>
                 <Text style={styles.lessonFinishBody}>
-                  You finished {lesson.title}. {lesson.category} games are now unlocked — go
-                  practice!
+                  {lessonReplay
+                    ? `You watched ${lesson.title} again. Your unlocked games stay exactly the same — keep playing anytime!`
+                    : `You finished ${lesson.title}. Matching games are now unlocked — go practice!`}
                 </Text>
                 <Pressable
                   onPress={backToMenu}

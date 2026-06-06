@@ -1,4 +1,4 @@
-export const LESSONS = [
+const CORE_LESSON_DEFS = [
   {
     id: "counting",
     category: "counting",
@@ -34,8 +34,8 @@ export const LESSONS = [
       {
         title: "You're Ready!",
         emoji: "🎉",
-        body: "Great job! Counting helps with every math adventure in the garden.",
-        tip: "Try Number Match Garden to practice counting dots!",
+        body: "Great job! Dot-counting games like Number Match Garden are now unlocked!",
+        tip: "Compare Class comes next to learn bigger and smaller!",
         visual: { type: "celebrate", emoji: "🌈" }
       }
     ]
@@ -47,7 +47,7 @@ export const LESSONS = [
     subtitle: "Learn what plus (+) means!",
     emoji: "➕",
     gradient: ["#86EFAC", "#22C55E"],
-    unlockAfter: "counting",
+    unlockAfter: "evenOdd",
     slides: [
       {
         title: "What is Addition?",
@@ -228,7 +228,38 @@ export const LESSONS = [
   }
 ];
 
-const LESSON_MAP = Object.fromEntries(LESSONS.map((lesson) => [lesson.id, lesson]));
+import { EXTRA_LESSONS } from "./lessonsExtra";
+
+const CORE_LESSONS = [
+  CORE_LESSON_DEFS[0],
+  CORE_LESSON_DEFS[1],
+  CORE_LESSON_DEFS[2],
+  CORE_LESSON_DEFS[3],
+  CORE_LESSON_DEFS[4]
+];
+
+export { CORE_LESSONS };
+
+export const ALL_LESSONS = [
+  CORE_LESSONS[0],
+  EXTRA_LESSONS[0],
+  EXTRA_LESSONS[1],
+  CORE_LESSONS[1],
+  CORE_LESSONS[2],
+  CORE_LESSONS[3],
+  CORE_LESSONS[4],
+  EXTRA_LESSONS[2],
+  EXTRA_LESSONS[3],
+  EXTRA_LESSONS[4],
+  EXTRA_LESSONS[5],
+  EXTRA_LESSONS[6],
+  EXTRA_LESSONS[7],
+  EXTRA_LESSONS[8]
+];
+
+export { ALL_LESSONS as LESSONS };
+
+const LESSON_MAP = Object.fromEntries(ALL_LESSONS.map((lesson) => [lesson.id, lesson]));
 
 export const CATEGORY_LESSON = {
   counting: "counting",
@@ -273,6 +304,10 @@ export function getLessonUnlockHint(lessonId) {
 }
 
 export function recordLessonSlide(progress, lessonId, slideIndex) {
+  if (isLessonComplete(progress, lessonId)) {
+    return progress;
+  }
+
   const next = {
     ...progress,
     lessons: { ...progress.lessons }
@@ -286,6 +321,10 @@ export function recordLessonSlide(progress, lessonId, slideIndex) {
 }
 
 export function completeLesson(progress, lessonId) {
+  if (isLessonComplete(progress, lessonId)) {
+    return progress;
+  }
+
   const next = recordLessonSlide(progress, lessonId, getLesson(lessonId).slides.length - 1);
   next.lessons[lessonId] = {
     ...next.lessons[lessonId],

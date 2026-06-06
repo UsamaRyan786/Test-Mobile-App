@@ -5,6 +5,7 @@ import {
   isLessonComplete,
   isLessonUnlocked
 } from "./lessons";
+import { getPlayableLessonTitles, isGameUnlockedByLesson } from "./lessonMap";
 
 export const PROGRESS_KEY = "@mathGarden/progress";
 export const LEVELS_PER_TIER = 10;
@@ -109,7 +110,7 @@ export function isCategoryUnlocked(progress, categoryId) {
 }
 
 export function isGameUnlocked(progress, game) {
-  return isCategoryUnlocked(progress, game.category);
+  return isGameUnlockedByLesson(progress, game);
 }
 
 export function getCategoryUnlockHint(categoryId, progress) {
@@ -238,15 +239,9 @@ export function getTierLabel(tier) {
   return tier === 2 ? "Advanced" : "Starter";
 }
 
-export function getPlayableCategoryLabels(progress) {
-  const labels = [];
-  if (isCategoryUnlocked(progress, "counting")) labels.push("Counting");
-  if (isCategoryUnlocked(progress, "addition")) labels.push("Addition");
-  if (isCategoryUnlocked(progress, "subtraction")) labels.push("Subtraction");
-  if (isCategoryUnlocked(progress, "multiplication")) labels.push("Multiplication");
-  if (isCategoryUnlocked(progress, "division")) labels.push("Division");
-  if (isCategoryUnlocked(progress, "patterns")) labels.push("Patterns");
-  if (isCategoryUnlocked(progress, "mixed")) labels.push("Mixed");
-  if (isCategoryUnlocked(progress, "challenge")) labels.push("Challenge");
-  return labels;
+export function getPlayableCategoryLabels(progress, games = []) {
+  if (games.length === 0) {
+    return [];
+  }
+  return getPlayableLessonTitles(progress, games);
 }
