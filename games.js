@@ -548,10 +548,11 @@ export function getGameMeta(gameId) {
   return GAME_MAP[gameId] || GAMES[0];
 }
 
-export function createRound(gameId) {
+export function createRound(gameId, options = {}) {
   const game = getGameMeta(gameId);
   const builder = ROUND_BUILDERS[game.roundType] || ROUND_BUILDERS.dots;
-  return builder(game.config);
+  const config = options.config ?? game.config;
+  return builder(config);
 }
 
 export function isDotsGame(gameId) {

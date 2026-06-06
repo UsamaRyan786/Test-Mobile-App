@@ -21,6 +21,7 @@ import {
 import {
   GAMES,
   createRound,
+  getGameMeta,
   getGamesByCategory,
   isDotsGame,
   showEqualsHint,
@@ -30,6 +31,26 @@ import {
   getTargetLabel,
   getPrompt
 } from "./games";
+import {
+  PROGRESS_KEY,
+  LEVELS_PER_TIER,
+  PASS_SCORE,
+  MIN_LEVEL_FOR_NEXT_CATEGORY,
+  LEARNING_PATH,
+  createDefaultProgress,
+  getGameProgress,
+  getLevelRecord,
+  isLevelUnlocked,
+  isTierUnlocked,
+  isCategoryUnlocked,
+  isGameUnlocked,
+  getCategoryUnlockHint,
+  getPathStepStatus,
+  getScaledConfig,
+  recordLevelResult,
+  didPassLevel,
+  getTierLabel
+} from "./progression";
 
 const MAX_ROUNDS = 12;
 const HIGH_SCORES_KEY = "@mathGarden/highScores";
@@ -84,6 +105,19 @@ async function loadRewards() {
 
 async function saveRewards(rewards) {
   await AsyncStorage.setItem(REWARDS_KEY, JSON.stringify(rewards));
+}
+
+async function loadProgress() {
+  try {
+    const raw = await AsyncStorage.getItem(PROGRESS_KEY);
+    return raw ? JSON.parse(raw) : createDefaultProgress();
+  } catch {
+    return createDefaultProgress();
+  }
+}
+
+async function saveProgressData(progress) {
+  await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 }
 
 async function applyRewards(gameId, score, beatRecord, highScores) {
@@ -210,7 +244,16 @@ function BackgroundDecor() {
   );
 }
 
-function MenuGameCard({ game, index, onPress, bestScore = 0, hasPlayed = false }) {
+function MenuGameCard({
+  game,
+  index,
+  onPress,
+  bestScore = 0,
+  hasPlayed = false,
+  locked = false,
+  unlockHint = "",
+  levelLabel = "Lv 1"
+}) {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -255,19 +298,29 @@ function MenuGameCard({ game, index, onPress, bestScore = 0, hasPlayed = false }
   }
 
   return (
-    <Animated.View style={entranceStyle}>
+    <Animated.View style={[entranceStyle, locked && styles.gameCardLockedWrap]}>
       <Pressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPress={locked ? undefined : onPress}
+        onPressIn={locked ? undefined : handlePressIn}
+        onPressOut={locked ? undefined : handlePressOut}
         accessibilityRole="button"
+        accessibilityState={{ disabled: locked }}
       >
         <LinearGradient colors={game.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gameCard}>
+          {locked ? (
+            <View style={styles.gameCardLockOverlay}>
+              <Text style={styles.gameCardLockEmoji}>🔒</Text>
+              <Text style={styles.gameCardLockText}>{unlockHint}</Text>
+            </View>
+          ) : null}
           <View style={styles.gameCardScoreBadge}>
             <Text style={styles.gameCardScoreLabel}>Best</Text>
             <Text style={styles.gameCardScoreValue}>
               {hasPlayed ? `${bestScore}/${MAX_ROUNDS}` : "—"}
             </Text>
+          </View>
+          <View style={styles.gameCardLevelBadge}>
+            <Text style={styles.gameCardLevelText}>{levelLabel}</Text>
           </View>
           <View style={styles.gameCardEmojiWrap}>
             <Text style={styles.gameCardEmoji}>{game.emoji}</Text>
@@ -277,9 +330,9 @@ function MenuGameCard({ game, index, onPress, bestScore = 0, hasPlayed = false }
             <Text style={styles.gameCardDescription}>{game.description}</Text>
             <View style={styles.gameCardFooter}>
               <View style={styles.playChip}>
-                <Text style={styles.playChipText}>Let's play! →</Text>
+                <Text style={styles.playChipText}>{locked ? "Locked" : "Choose level →"}</Text>
               </View>
-              {hasPlayed && <StarRating count={getStars(bestScore)} compact />}
+              {hasPlayed && !locked && <StarRating count={getStars(bestScore)} compact />}
             </View>
           </View>
         </LinearGradient>
@@ -553,6 +606,40 @@ function BadgeCard({ badge, unlocked, index }) {
   );
 }
 
+function LearningPathBar({ progress }) {
+  return (
+    <LinearGradient colors={["#ECFDF5", "#D1FAE5"]} style={styles.learningPathBar}>
+      <Text style={styles.learningPathTitle}>🛤️ Your Learning Path</Text>
+      <Text style={styles.learningPathSubtitle}>
+        Plus → Minus → Times → Divide · Pass Level {MIN_LEVEL_FOR_NEXT_CATEGORY} to unlock the next step
+      </Text>
+      <View style={styles.learningPathRow}>
+        {LEARNING_PATH.map((step, index) => {
+          const status = getPathStepStatus(progress, step.id, GAMES);
+          return (
+            <View key={step.id} style={styles.learningPathStepWrap}>
+              <View
+                style={[
+                  styles.learningPathStep,
+                  !status.unlocked && styles.learningPathStepLocked,
+                  status.mastered && styles.learningPathStepMastered
+                ]}
+              >
+                <Text style={styles.learningPathStepEmoji}>{status.unlocked ? step.emoji : "🔒"}</Text>
+                <Text style={styles.learningPathStepLabel}>{step.label}</Text>
+                {status.mastered ? <Text style={styles.learningPathStepBadge}>⭐</Text> : null}
+              </View>
+              {index < LEARNING_PATH.length - 1 ? (
+                <Text style={styles.learningPathArrow}>→</Text>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
+    </LinearGradient>
+  );
+}
+
 function ScreenShell({ children }) {
   return (
     <LinearGradient colors={THEME.bg} style={styles.gradientRoot}>
@@ -584,6 +671,9 @@ export default function App() {
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [rewards, setRewards] = useState({ coins: 0, badges: {} });
   const [sessionReward, setSessionReward] = useState(null);
+  const [progress, setProgress] = useState(createDefaultProgress());
+  const [selectedTier, setSelectedTier] = useState(1);
+  const [selectedLevel, setSelectedLevel] = useState(1);
 
   const currentHighScore = highScores[selectedGame.id]?.best ?? 0;
   const unlockedBadgeCount = Object.keys(rewards.badges).length;
@@ -665,10 +755,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    Promise.all([loadHighScores(), loadRewards()]).then(([scores, rewardData]) => {
-      setHighScores(scores);
-      setRewards(rewardData);
-    });
+    Promise.all([loadHighScores(), loadRewards(), loadProgress()]).then(
+      ([scores, rewardData, progressData]) => {
+        setHighScores(scores);
+        setRewards(rewardData);
+        setProgress(progressData);
+      }
+    );
   }, [screen]);
 
   useEffect(() => {
@@ -691,14 +784,19 @@ export default function App() {
     }).start();
   }
 
-  function startRound(gameId) {
+  function startRound(gameId, tier = 1, level = 1) {
     if (feedbackTimer.current) {
       clearTimeout(feedbackTimer.current);
     }
 
+    const game = getGameMeta(gameId);
+    const config = getScaledConfig(game.config, game.roundType, tier, level);
+
     setScore(0);
     setRound(1);
-    setRoundData(createRound(gameId));
+    setSelectedTier(tier);
+    setSelectedLevel(level);
+    setRoundData(createRound(gameId, { config }));
     setRoundKey((k) => k + 1);
     setSelected(null);
     setMessage(getInstruction(gameId));
@@ -708,9 +806,22 @@ export default function App() {
   }
 
   function selectGame(game) {
+    if (!isGameUnlocked(progress, game, GAMES)) {
+      return;
+    }
     setSelectedGame(game);
-    startRound(game.id);
+    setSelectedTier(1);
+    setScreen("levels");
+  }
+
+  function startLevel(game, tier, level) {
+    setSelectedGame(game);
+    startRound(game.id, tier, level);
     setScreen("game");
+  }
+
+  function backToLevels() {
+    setScreen("levels");
   }
 
   function backToMenu() {
@@ -737,6 +848,17 @@ export default function App() {
         const updatedScores = { ...highScores, [selectedGame.id]: record };
         setHighScores(updatedScores);
 
+        const updatedProgress = recordLevelResult(
+          progress,
+          selectedGame.id,
+          selectedTier,
+          selectedLevel,
+          nextScore,
+          MAX_ROUNDS
+        );
+        setProgress(updatedProgress);
+        await saveProgressData(updatedProgress);
+
         const result = await applyRewards(selectedGame.id, nextScore, beatRecord, updatedScores);
         setRewards(result.rewards);
         setSessionReward({
@@ -756,13 +878,24 @@ export default function App() {
             ? "Great job! Keep practicing!"
             : "Nice try! Play again to improve!";
       const recordMsg = beatRecord ? " 🏆 New high score!" : "";
-      setMessage(`${starMsg}${recordMsg} Score: ${nextScore}/${MAX_ROUNDS}`);
+      const passMsg = didPassLevel(nextScore)
+        ? ` Level ${selectedLevel} passed!${
+            selectedLevel < LEVELS_PER_TIER
+              ? ` Level ${selectedLevel + 1} unlocked!`
+              : selectedTier === 1
+                ? " Advanced mode unlocked!"
+                : ""
+          }`
+        : ` Score ${PASS_SCORE}+ needed to pass Level ${selectedLevel}.`;
+      setMessage(`${starMsg}${recordMsg}${passMsg} Score: ${nextScore}/${MAX_ROUNDS}`);
       pulseMessage();
       return;
     }
 
     setRound((currentRound) => currentRound + 1);
-    setRoundData(createRound(selectedGame.id));
+    const game = getGameMeta(selectedGame.id);
+    const config = getScaledConfig(game.config, game.roundType, selectedTier, selectedLevel);
+    setRoundData(createRound(selectedGame.id, { config }));
     setRoundKey((k) => k + 1);
     setSelected(null);
     setMessage(getInstruction(selectedGame.id));
@@ -830,9 +963,11 @@ export default function App() {
             <Text style={styles.eyebrow}>✦ Pick Your Adventure ✦</Text>
             <Animated.Text style={[styles.title, titleStyle]}>Which game shall we play?</Animated.Text>
             <Text style={styles.subtitle}>
-              {GAMES.length} fun math games — count, add, subtract, multiply, divide, and climb the high score board!
+              {GAMES.length} games with 10 levels each — learn Plus, then Minus, Times, and Divide!
             </Text>
           </View>
+
+          <LearningPathBar progress={progress} />
 
           <LinearGradient colors={["#FFFFFF", "#FEF3C7"]} style={styles.menuScoreSummary}>
             <View style={styles.menuScoreSummaryHeader}>
@@ -855,27 +990,149 @@ export default function App() {
             )}
           </LinearGradient>
 
-          {getGamesByCategory().map((section) => (
-            <View key={section.id} style={styles.gameCategorySection}>
-              <Text style={styles.gameCategoryTitle}>{section.label}</Text>
-              <View style={styles.gameCategoryList}>
-                {section.games.map((game) => {
-                  const record = highScores[game.id] || { best: 0, plays: 0 };
-                  const index = GAMES.findIndex((item) => item.id === game.id);
-                  return (
-                    <MenuGameCard
-                      key={game.id}
-                      game={game}
-                      index={index}
-                      bestScore={record.best}
-                      hasPlayed={record.plays > 0}
-                      onPress={() => selectGame(game)}
-                    />
-                  );
-                })}
+          {getGamesByCategory().map((section) => {
+            const categoryOpen = isCategoryUnlocked(progress, section.id, GAMES);
+            const unlockHint = getCategoryUnlockHint(section.id);
+
+            return (
+              <View key={section.id} style={styles.gameCategorySection}>
+                <View style={styles.gameCategoryHeader}>
+                  <Text style={styles.gameCategoryTitle}>{section.label}</Text>
+                  {!categoryOpen && unlockHint ? (
+                    <Text style={styles.gameCategoryLockHint}>🔒 {unlockHint}</Text>
+                  ) : null}
+                </View>
+                <View style={styles.gameCategoryList}>
+                  {section.games.map((game) => {
+                    const record = highScores[game.id] || { best: 0, plays: 0 };
+                    const index = GAMES.findIndex((item) => item.id === game.id);
+                    const gameProgress = getGameProgress(progress, game.id);
+                    const locked = !isGameUnlocked(progress, game, GAMES);
+                    const levelLabel = isTierUnlocked(progress, game.id, 2)
+                      ? `Lv ${gameProgress.maxLevel}/10 · ★ Advanced`
+                      : `Lv ${gameProgress.maxLevel}/${LEVELS_PER_TIER}`;
+
+                    return (
+                      <MenuGameCard
+                        key={game.id}
+                        game={game}
+                        index={index}
+                        bestScore={record.best}
+                        hasPlayed={record.plays > 0}
+                        locked={locked}
+                        unlockHint={unlockHint || "Complete earlier steps first!"}
+                        levelLabel={levelLabel}
+                        onPress={() => selectGame(game)}
+                      />
+                    );
+                  })}
+                </View>
               </View>
+            );
+          })}
+        </ScrollView>
+      </ScreenShell>
+    );
+  }
+
+  function renderLevelSelect() {
+    const tier2Open = isTierUnlocked(progress, selectedGame.id);
+    const levels = Array.from({ length: LEVELS_PER_TIER }, (_, index) => index + 1);
+
+    return (
+      <ScreenShell>
+        <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+          <View style={styles.gameHeader}>
+            <Pressable
+              onPress={backToMenu}
+              style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]}
+            >
+              <Text style={styles.backButtonText}>← Home</Text>
+            </Pressable>
+            <View style={styles.gameTitleBlock}>
+              <Text style={styles.gameEmoji}>{selectedGame.emoji}</Text>
+              <Animated.Text style={[styles.gameTitle, titleStyle]}>{selectedGame.title}</Animated.Text>
             </View>
-          ))}
+          </View>
+
+          <LinearGradient colors={["#FFFFFF", "#FFFBEB"]} style={styles.levelSelectPanel}>
+            <Text style={styles.levelSelectTitle}>Pick a Level</Text>
+            <Text style={styles.levelSelectSubtitle}>
+              Score {PASS_SCORE}/{MAX_ROUNDS} or more to pass · Each level gets a little harder
+            </Text>
+
+            <View style={styles.tierToggleRow}>
+              <Pressable
+                onPress={() => setSelectedTier(1)}
+                style={({ pressed }) => [
+                  styles.tierToggleButton,
+                  selectedTier === 1 && styles.tierToggleButtonActive,
+                  pressed && styles.pressedButton
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tierToggleText,
+                    selectedTier === 1 && styles.tierToggleTextActive
+                  ]}
+                >
+                  🌱 Starter
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => tier2Open && setSelectedTier(2)}
+                style={({ pressed }) => [
+                  styles.tierToggleButton,
+                  selectedTier === 2 && styles.tierToggleButtonActive,
+                  !tier2Open && styles.tierToggleButtonDisabled,
+                  pressed && tier2Open && styles.pressedButton
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tierToggleText,
+                    selectedTier === 2 && styles.tierToggleTextActive,
+                    !tier2Open && styles.tierToggleTextDisabled
+                  ]}
+                >
+                  {tier2Open ? "🔥 Advanced" : "🔒 Advanced"}
+                </Text>
+              </Pressable>
+            </View>
+
+            {!tier2Open ? (
+              <Text style={styles.tierHint}>Pass all 10 Starter levels to unlock Advanced mode!</Text>
+            ) : null}
+
+            <View style={styles.levelGrid}>
+              {levels.map((level) => {
+                const unlocked = isLevelUnlocked(progress, selectedGame.id, selectedTier, level);
+                const record = getLevelRecord(progress, selectedGame.id, selectedTier, level);
+
+                return (
+                  <Pressable
+                    key={`${selectedTier}-${level}`}
+                    disabled={!unlocked}
+                    onPress={() => startLevel(selectedGame, selectedTier, level)}
+                    style={({ pressed }) => [
+                      styles.levelButton,
+                      !unlocked && styles.levelButtonLocked,
+                      record?.passed && styles.levelButtonPassed,
+                      pressed && unlocked && styles.pressedButton
+                    ]}
+                  >
+                    <Text style={[styles.levelButtonNumber, !unlocked && styles.levelButtonTextLocked]}>
+                      {level}
+                    </Text>
+                    {record?.passed ? <Text style={styles.levelButtonCheck}>✓</Text> : null}
+                    {record?.best ? (
+                      <Text style={styles.levelButtonScore}>{record.best}/{MAX_ROUNDS}</Text>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </LinearGradient>
         </ScrollView>
       </ScreenShell>
     );
@@ -896,7 +1153,12 @@ export default function App() {
             </Pressable>
             <View style={styles.gameTitleBlock}>
               <Text style={styles.gameEmoji}>{gameTheme.emoji}</Text>
-              <Animated.Text style={[styles.gameTitle, titleStyle]}>{selectedGame.title}</Animated.Text>
+              <View style={styles.gameTitleCopy}>
+                <Animated.Text style={[styles.gameTitle, titleStyle]}>{selectedGame.title}</Animated.Text>
+                <Text style={styles.gameLevelBand}>
+                  {getTierLabel(selectedTier)} · Level {selectedLevel}/{LEVELS_PER_TIER}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -904,7 +1166,7 @@ export default function App() {
             <View style={styles.progressLabels}>
               <Text style={styles.progressLabel}>Progress</Text>
               <Text style={styles.progressLabel}>
-                Round {Math.min(round, MAX_ROUNDS)}/{MAX_ROUNDS}
+                Round {Math.min(round, MAX_ROUNDS)}/{MAX_ROUNDS} · Need {PASS_SCORE}+ to pass
               </Text>
             </View>
             <View style={styles.loadingBarContainer}>
@@ -984,6 +1246,13 @@ export default function App() {
                     <Text style={styles.newRecordText}>🏆 New High Score!</Text>
                   </View>
                 )}
+                {didPassLevel(score) ? (
+                  <Text style={styles.levelPassBanner}>✅ Level {selectedLevel} passed!</Text>
+                ) : (
+                  <Text style={styles.levelFailBanner}>
+                    Score {PASS_SCORE}/{MAX_ROUNDS}+ needed to pass Level {selectedLevel}
+                  </Text>
+                )}
                 {sessionReward && (
                   <LinearGradient colors={["#FEF3C7", "#FDE68A"]} style={styles.sessionRewardBox}>
                     <Text style={styles.sessionRewardTitle}>🎁 Rewards Earned!</Text>
@@ -1014,7 +1283,7 @@ export default function App() {
                 )}
                 <StarRating count={stars} />
                 <Pressable
-                  onPress={() => selectGame(selectedGame)}
+                  onPress={() => startLevel(selectedGame, selectedTier, selectedLevel)}
                   style={({ pressed }) => [styles.playAgainButton, pressed && styles.pressedButton]}
                   accessibilityRole="button"
                 >
@@ -1022,6 +1291,12 @@ export default function App() {
                     <Text style={styles.playIcon}>▶</Text>
                     <Text style={styles.playAgainText}>Play Again!</Text>
                   </LinearGradient>
+                </Pressable>
+                <Pressable
+                  onPress={backToLevels}
+                  style={({ pressed }) => [styles.levelsLinkButton, pressed && styles.pressedButton]}
+                >
+                  <Text style={styles.levelsLinkText}>← Choose another level</Text>
                 </Pressable>
               </View>
             ) : (
@@ -1137,6 +1412,9 @@ export default function App() {
 
   if (screen === "dashboard") {
     return renderDashboard();
+  }
+  if (screen === "levels") {
+    return renderLevelSelect();
   }
   if (screen === "game") {
     return renderGame();
@@ -1286,13 +1564,88 @@ const styles = StyleSheet.create({
     marginTop: 20,
     gap: 12
   },
+  gameCategoryHeader: {
+    gap: 4
+  },
   gameCategoryTitle: {
     color: THEME.text,
     fontSize: 18,
     fontWeight: "800"
   },
+  gameCategoryLockHint: {
+    color: THEME.textSoft,
+    fontSize: 13,
+    fontWeight: "600"
+  },
   gameCategoryList: {
     gap: 16
+  },
+  learningPathBar: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.8)"
+  },
+  learningPathTitle: {
+    color: THEME.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  learningPathSubtitle: {
+    marginTop: 6,
+    color: THEME.textSoft,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600"
+  },
+  learningPathRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 14,
+    flexWrap: "wrap",
+    gap: 6
+  },
+  learningPathStepWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4
+  },
+  learningPathStep: {
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.75)",
+    minWidth: 58
+  },
+  learningPathStepLocked: {
+    opacity: 0.55
+  },
+  learningPathStepMastered: {
+    borderWidth: 2,
+    borderColor: THEME.gold
+  },
+  learningPathStepEmoji: {
+    fontSize: 20
+  },
+  learningPathStepLabel: {
+    marginTop: 2,
+    color: THEME.text,
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  learningPathStepBadge: {
+    fontSize: 10
+  },
+  learningPathArrow: {
+    color: THEME.textSoft,
+    fontSize: 16,
+    fontWeight: "800"
+  },
+  gameCardLockedWrap: {
+    opacity: 0.72
   },
   gameCard: {
     flexDirection: "row",
@@ -1332,6 +1685,38 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "900"
+  },
+  gameCardLevelBadge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: "rgba(30,58,95,0.35)"
+  },
+  gameCardLevelText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  gameCardLockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(30,58,95,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    zIndex: 2
+  },
+  gameCardLockEmoji: {
+    fontSize: 28
+  },
+  gameCardLockText: {
+    marginTop: 8,
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+    textAlign: "center"
   },
   gameCardEmojiWrap: {
     width: 64,
@@ -1432,15 +1817,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10
   },
+  gameTitleCopy: {
+    flex: 1
+  },
   gameEmoji: {
     fontSize: 32
   },
   gameTitle: {
-    flex: 1,
     color: THEME.text,
     fontSize: 22,
     fontWeight: "900",
-    lineHeight: 28
+    flexShrink: 1
+  },
+  gameLevelBand: {
+    marginTop: 2,
+    color: THEME.textSoft,
+    fontSize: 13,
+    fontWeight: "700"
   },
   backButton: {
     paddingVertical: 10,
@@ -1665,6 +2058,127 @@ const styles = StyleSheet.create({
     marginTop: 12,
     alignItems: "center",
     gap: 16
+  },
+  levelPassBanner: {
+    color: "#059669",
+    fontSize: 16,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  levelFailBanner: {
+    color: "#DC2626",
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center"
+  },
+  levelSelectPanel: {
+    padding: 20,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: "#FFFFFF"
+  },
+  levelSelectTitle: {
+    color: THEME.text,
+    fontSize: 24,
+    fontWeight: "900"
+  },
+  levelSelectSubtitle: {
+    marginTop: 8,
+    color: THEME.textSoft,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600"
+  },
+  tierToggleRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16
+  },
+  tierToggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "transparent"
+  },
+  tierToggleButtonActive: {
+    backgroundColor: "#DBEAFE",
+    borderColor: "#3B82F6"
+  },
+  tierToggleButtonDisabled: {
+    opacity: 0.6
+  },
+  tierToggleText: {
+    color: THEME.textSoft,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  tierToggleTextActive: {
+    color: THEME.text
+  },
+  tierToggleTextDisabled: {
+    color: THEME.textSoft
+  },
+  tierHint: {
+    marginTop: 10,
+    color: THEME.textSoft,
+    fontSize: 13,
+    fontWeight: "600"
+  },
+  levelGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 18
+  },
+  levelButton: {
+    width: "18%",
+    minWidth: 58,
+    aspectRatio: 1,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#BFDBFE",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 4
+  },
+  levelButtonLocked: {
+    backgroundColor: "#F1F5F9",
+    borderColor: "#E2E8F0",
+    opacity: 0.55
+  },
+  levelButtonPassed: {
+    borderColor: "#22C55E",
+    backgroundColor: "#ECFDF5"
+  },
+  levelButtonNumber: {
+    color: THEME.text,
+    fontSize: 20,
+    fontWeight: "900"
+  },
+  levelButtonTextLocked: {
+    color: THEME.textSoft
+  },
+  levelButtonCheck: {
+    color: "#059669",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  levelButtonScore: {
+    color: THEME.textSoft,
+    fontSize: 9,
+    fontWeight: "700"
+  },
+  levelsLinkButton: {
+    paddingVertical: 10
+  },
+  levelsLinkText: {
+    color: "#2563EB",
+    fontSize: 15,
+    fontWeight: "800"
   },
   starRow: {
     flexDirection: "row",

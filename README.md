@@ -4,6 +4,34 @@ A colorful Expo React Native app that helps children practice basic math through
 
 Also published in Expo as **Number Match Garden** (`number-match-garden`).
 
+## Learning path & levels
+
+Math Garden uses a **step-by-step learning path** so kids master each operation before moving on:
+
+| Step | Unlocks when |
+|------|----------------|
+| ➕ **Plus** (Addition) | Always open |
+| ➖ **Minus** (Subtraction) | Pass **Level 3** in any addition game |
+| ✖️ **Times** (Multiplication) | Pass **Level 3** in any subtraction game |
+| ➗ **Divide** (Division) | Pass **Level 3** in any multiplication game |
+| 🔮 Patterns / 🎲 Mixed / 🏆 Challenge | Pass **Level 3** in any division game |
+
+**Counting** games are always available as a gentle starting point.
+
+### 10 levels per game (2 tiers)
+
+Every game has **10 levels** in two tiers:
+
+| Tier | Description |
+|------|-------------|
+| 🌱 **Starter** | Levels 1–10 — numbers get slightly harder each level |
+| 🔥 **Advanced** | Unlocks after passing all 10 Starter levels — same game, tougher numbers |
+
+- Each level is one full game session (**12 questions**).
+- **Pass a level:** score **8 or more** out of 12.
+- Passing a level unlocks the next level in that game.
+- Progress is saved locally under `@mathGarden/progress`.
+
 ## Features
 
 - **71 math mini-games** covering counting, addition, subtraction, multiplication, division, mixed arithmetic, patterns, and challenges
@@ -234,6 +262,7 @@ npx expo start --web
 .
 ├── App.js              # Main app: UI, scores, rewards, screens
 ├── games.js            # 71 games, round generators, menu categories
+├── progression.js      # Learning path, level unlocks, difficulty scaling
 ├── badges.js           # Badge definitions and unlock logic (457 badges)
 ├── app.json            # Expo config (name, slug, SDK, splash)
 ├── package.json        # Dependencies and scripts
@@ -248,9 +277,10 @@ npx expo start --web
 |------|---------|
 | **Screens** | Menu (grouped by category), game play, high scores dashboard |
 | **Constants** | `MAX_ROUNDS = 12`, `GAMES` from `games.js`, theme colors |
-| **Storage keys** | `@mathGarden/highScores`, `@mathGarden/rewards` |
+| **Storage keys** | `@mathGarden/highScores`, `@mathGarden/rewards`, `@mathGarden/progress` |
 | **Functions** | `loadHighScores`, `saveHighScore`, `loadRewards`, `applyRewards` |
 | **Games** | `createRound`, `getGamesByCategory`, UI helpers in `games.js` |
+| **Progression** | `getScaledConfig`, `recordLevelResult`, unlock checks in `progression.js` |
 | **Badges** | `buildBadges`, `evaluateBadges`, `updateRewardStats` in `badges.js` |
 
 ## Configuration
