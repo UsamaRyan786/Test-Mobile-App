@@ -1,0 +1,24 @@
+---
+description: Keep README.md in sync whenever project code or config changes
+alwaysApply: true
+---
+
+# Update README with code changes
+
+When you modify project files (especially `App.js`, `app.json`, `package.json`, or game/reward logic), also update `README.md` in the same task.
+
+## Required updates
+
+Reflect any changes to:
+
+- Features, screens, and user-facing behavior
+- Game list, rounds per game (`MAX_ROUNDS`), scoring, stars, high scores
+- Rewards: garden coins, badges, unlock conditions, storage keys
+- Dependencies, scripts, setup/run instructions
+- Project structure and configuration (`app.json`, Expo SDK)
+
+## Guidelines
+
+- Keep README accurate and concise; remove outdated info (e.g. old round counts or missing features).
+- Do not skip README updates because the user did not mention it — treat docs as part of the deliverable.
+- If a change is trivial (typo in a comment only), README update is optional.

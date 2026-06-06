@@ -12,9 +12,16 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  buildBadges,
+  evaluateBadges,
+  getBadgesByCategory,
+  updateRewardStats
+} from "./badges";
 
-const MAX_ROUNDS = 8;
+const MAX_ROUNDS = 12;
 const HIGH_SCORES_KEY = "@mathGarden/highScores";
+const REWARDS_KEY = "@mathGarden/rewards";
 const MIN_NUMBER = 1;
 const MAX_NUMBER = 10;
 
@@ -303,6 +310,8 @@ const GAMES = [
   }
 ];
 
+const BADGES = buildBadges(GAMES, MAX_ROUNDS);
+
 async function loadHighScores() {
   try {
     const raw = await AsyncStorage.getItem(HIGH_SCORES_KEY);
@@ -323,6 +332,60 @@ async function saveHighScore(gameId, score) {
   scores[gameId] = record;
   await AsyncStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(scores));
   return record;
+}
+
+async function loadRewards() {
+  try {
+    const raw = await AsyncStorage.getItem(REWARDS_KEY);
+    return raw ? JSON.parse(raw) : { coins: 0, badges: {}, stats: { recordBreaks: 0, totalCorrect: 0 } };
+  } catch {
+    return { coins: 0, badges: {}, stats: { recordBreaks: 0, totalCorrect: 0 } };
+  }
+}
+
+async function saveRewards(rewards) {
+  await AsyncStorage.setItem(REWARDS_KEY, JSON.stringify(rewards));
+}
+
+async function applyRewards(gameId, score, beatRecord, highScores) {
+  const rewards = await loadRewards();
+  let coinsEarned = score * 2 + 10 + getStars(score) * 8;
+
+  if (score === MAX_ROUNDS) {
+    coinsEarned += 40;
+  }
+  if (beatRecord) {
+    coinsEarned += 15;
+  }
+
+  rewards.coins += coinsEarned;
+  updateRewardStats(rewards, score, beatRecord);
+
+  const newBadges = [];
+  let foundNewBadge = true;
+
+  while (foundNewBadge) {
+    foundNewBadge = false;
+    const checks = evaluateBadges(BADGES, GAMES, MAX_ROUNDS, highScores, rewards, {
+      beatRecord,
+      gameId,
+      score
+    });
+
+    for (const badge of BADGES) {
+      if (rewards.badges[badge.id] || !checks[badge.id]) {
+        continue;
+      }
+
+      rewards.badges[badge.id] = Date.now();
+      rewards.coins += badge.reward;
+      newBadges.push(badge);
+      foundNewBadge = true;
+    }
+  }
+
+  await saveRewards(rewards);
+  return { rewards, coinsEarned, newBadges };
 }
 
 function isDotsGame(gameId) {
@@ -396,9 +459,9 @@ function getDashboardStats(highScores) {
 }
 
 function getStars(score) {
-  if (score >= 7) return 3;
-  if (score >= 5) return 2;
-  if (score >= 3) return 1;
+  if (score >= MAX_ROUNDS - 2) return 3;
+  if (score >= Math.floor(MAX_ROUNDS * 0.67)) return 2;
+  if (score >= Math.floor(MAX_ROUNDS * 0.42)) return 1;
   return 0;
 }
 
@@ -767,6 +830,46 @@ function DashboardScoreRow({ game, record, index }) {
   );
 }
 
+function BadgeCard({ badge, unlocked, index }) {
+  const popAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    popAnim.setValue(0);
+    Animated.spring(popAnim, {
+      toValue: 1,
+      delay: index * 50,
+      friction: 7,
+      tension: 60,
+      useNativeDriver: true
+    }).start();
+  }, [index, popAnim]);
+
+  const cardStyle = {
+    opacity: popAnim,
+    transform: [
+      {
+        scale: popAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.9, 1]
+        })
+      }
+    ]
+  };
+
+  return (
+    <Animated.View style={[styles.badgeCard, !unlocked && styles.badgeCardLocked, cardStyle]}>
+      <Text style={[styles.badgeEmoji, !unlocked && styles.badgeEmojiLocked]}>{badge.emoji}</Text>
+      <Text style={[styles.badgeTitle, !unlocked && styles.badgeTextLocked]}>{badge.title}</Text>
+      <Text style={[styles.badgeDescription, !unlocked && styles.badgeTextLocked]} numberOfLines={2}>
+        {badge.description}
+      </Text>
+      <Text style={[styles.badgeReward, !unlocked && styles.badgeTextLocked]}>
+        {unlocked ? `+${badge.reward} 🪙 earned` : `Reward: ${badge.reward} 🪙`}
+      </Text>
+    </Animated.View>
+  );
+}
+
 function ScreenShell({ children }) {
   return (
     <LinearGradient colors={THEME.bg} style={styles.gradientRoot}>
@@ -796,8 +899,11 @@ export default function App() {
   const [roundKey, setRoundKey] = useState(0);
   const [highScores, setHighScores] = useState({});
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const [rewards, setRewards] = useState({ coins: 0, badges: {} });
+  const [sessionReward, setSessionReward] = useState(null);
 
   const currentHighScore = highScores[selectedGame.id]?.best ?? 0;
+  const unlockedBadgeCount = Object.keys(rewards.badges).length;
 
   const dots = useMemo(
     () =>
@@ -876,7 +982,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    loadHighScores().then(setHighScores);
+    Promise.all([loadHighScores(), loadRewards()]).then(([scores, rewardData]) => {
+      setHighScores(scores);
+      setRewards(rewardData);
+    });
   }, [screen]);
 
   useEffect(() => {
@@ -912,6 +1021,7 @@ export default function App() {
     setMessage(getInstruction(gameId));
     setFinished(false);
     setIsNewRecord(false);
+    setSessionReward(null);
   }
 
   function selectGame(game) {
@@ -940,7 +1050,19 @@ export default function App() {
       const prevBest = highScores[selectedGame.id]?.best ?? 0;
       const beatRecord = nextScore > prevBest;
 
-      recordGameScore(selectedGame.id, nextScore);
+      recordGameScore(selectedGame.id, nextScore).then(async (record) => {
+        const updatedScores = { ...highScores, [selectedGame.id]: record };
+        setHighScores(updatedScores);
+
+        const result = await applyRewards(selectedGame.id, nextScore, beatRecord, updatedScores);
+        setRewards(result.rewards);
+        setSessionReward({
+          coinsEarned: result.coinsEarned,
+          newBadges: result.newBadges,
+          totalCoins: result.rewards.coins
+        });
+      });
+
       setIsNewRecord(beatRecord);
 
       const stars = getStars(nextScore);
@@ -1004,6 +1126,22 @@ export default function App() {
               <Text style={styles.dashboardFabEmoji}>🏆</Text>
             </Pressable>
           </Animated.View>
+
+          <LinearGradient colors={["#FFF7ED", "#FFEDD5"]} style={styles.menuRewardsBar}>
+            <View style={styles.menuRewardItem}>
+              <Text style={styles.menuRewardEmoji}>🪙</Text>
+              <Text style={styles.menuRewardValue}>{rewards.coins}</Text>
+              <Text style={styles.menuRewardLabel}>Garden Coins</Text>
+            </View>
+            <View style={styles.menuRewardDivider} />
+            <View style={styles.menuRewardItem}>
+              <Text style={styles.menuRewardEmoji}>🎖️</Text>
+              <Text style={styles.menuRewardValue}>
+                {unlockedBadgeCount}/{BADGES.length}
+              </Text>
+              <Text style={styles.menuRewardLabel}>Badges</Text>
+            </View>
+          </LinearGradient>
 
           <View style={styles.sectionHeader}>
             <Text style={styles.eyebrow}>✦ Pick Your Adventure ✦</Text>
@@ -1157,6 +1295,34 @@ export default function App() {
                     <Text style={styles.newRecordText}>🏆 New High Score!</Text>
                   </View>
                 )}
+                {sessionReward && (
+                  <LinearGradient colors={["#FEF3C7", "#FDE68A"]} style={styles.sessionRewardBox}>
+                    <Text style={styles.sessionRewardTitle}>🎁 Rewards Earned!</Text>
+                    <Text style={styles.sessionRewardCoins}>
+                      +{sessionReward.coinsEarned} Garden Coins 🪙
+                    </Text>
+                    <Text style={styles.sessionRewardTotal}>
+                      Total coins: {sessionReward.totalCoins}
+                    </Text>
+                    {sessionReward.newBadges.slice(0, 3).map((badge) => (
+                      <View key={badge.id} style={styles.newBadgeUnlock}>
+                        <Text style={styles.newBadgeUnlockTitle}>
+                          {badge.emoji} New Badge: {badge.title}
+                        </Text>
+                        <Text style={styles.newBadgeUnlockDesc}>{badge.description}</Text>
+                        {badge.reward > 0 && (
+                          <Text style={styles.newBadgeUnlockBonus}>Bonus +{badge.reward} 🪙</Text>
+                        )}
+                      </View>
+                    ))}
+                    {sessionReward.newBadges.length > 3 && (
+                      <Text style={styles.newBadgeMore}>
+                        +{sessionReward.newBadges.length - 3} more badge
+                        {sessionReward.newBadges.length - 3 === 1 ? "" : "s"} unlocked!
+                      </Text>
+                    )}
+                  </LinearGradient>
+                )}
                 <StarRating count={stars} />
                 <Pressable
                   onPress={() => selectGame(selectedGame)}
@@ -1235,9 +1401,9 @@ export default function App() {
                 : `You've played ${totalPlays} time${totalPlays === 1 ? "" : "s"} — keep going!`}
             </Text>
             <View style={styles.dashboardStatsRow}>
-              <DashboardStatPill emoji="🎮" label="Total Plays" value={totalPlays} />
-              <DashboardStatPill emoji="⭐" label="Best Points" value={totalBest} />
-              <DashboardStatPill emoji="💯" label="Perfect" value={perfectGames} />
+              <DashboardStatPill emoji="🪙" label="Coins" value={rewards.coins} />
+              <DashboardStatPill emoji="🎮" label="Plays" value={totalPlays} />
+              <DashboardStatPill emoji="🎖️" label="Badges" value={unlockedBadgeCount} />
             </View>
             {topRecord?.record.best > 0 && (
               <View style={styles.dashboardChampion}>
@@ -1249,12 +1415,32 @@ export default function App() {
             )}
           </LinearGradient>
 
-          <Text style={styles.dashboardSectionTitle}>All Games</Text>
+          <Text style={styles.dashboardSectionTitle}>High Scores</Text>
           <View style={styles.dashboardList}>
             {sortedRecords.map(({ game, record }, index) => (
               <DashboardScoreRow key={game.id} game={game} record={record} index={index} />
             ))}
           </View>
+
+          <Text style={styles.dashboardSectionTitle}>Badges & Rewards</Text>
+          <Text style={styles.dashboardBadgesHint}>
+            {unlockedBadgeCount}/{BADGES.length} badges unlocked — play more to collect them all!
+          </Text>
+          {getBadgesByCategory(BADGES).map((section) => (
+            <View key={section.id} style={styles.badgeCategorySection}>
+              <Text style={styles.badgeCategoryTitle}>{section.label}</Text>
+              <View style={styles.badgeGrid}>
+                {section.badges.map((badge, index) => (
+                  <BadgeCard
+                    key={badge.id}
+                    badge={badge}
+                    unlocked={Boolean(rewards.badges[badge.id])}
+                    index={index}
+                  />
+                ))}
+              </View>
+            </View>
+          ))}
         </ScrollView>
       </ScreenShell>
     );
@@ -2025,5 +2211,169 @@ const styles = StyleSheet.create({
     color: "#92400E",
     fontSize: 16,
     fontWeight: "900"
+  },
+  menuRewardsBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: "#FFFFFF"
+  },
+  menuRewardItem: {
+    flex: 1,
+    alignItems: "center"
+  },
+  menuRewardEmoji: {
+    fontSize: 24
+  },
+  menuRewardValue: {
+    marginTop: 4,
+    color: THEME.text,
+    fontSize: 22,
+    fontWeight: "900"
+  },
+  menuRewardLabel: {
+    marginTop: 2,
+    color: THEME.textSoft,
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase"
+  },
+  menuRewardDivider: {
+    width: 2,
+    height: 48,
+    borderRadius: 1,
+    backgroundColor: "rgba(255,255,255,0.8)"
+  },
+  sessionRewardBox: {
+    width: "100%",
+    padding: 16,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: "#FBBF24",
+    gap: 8
+  },
+  sessionRewardTitle: {
+    color: "#92400E",
+    fontSize: 18,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  sessionRewardCoins: {
+    color: THEME.text,
+    fontSize: 20,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  sessionRewardTotal: {
+    color: THEME.textSoft,
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 4
+  },
+  newBadgeUnlock: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.65)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.9)"
+  },
+  newBadgeUnlockTitle: {
+    color: THEME.text,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  newBadgeUnlockDesc: {
+    marginTop: 4,
+    color: THEME.textSoft,
+    fontSize: 13,
+    fontWeight: "600"
+  },
+  newBadgeUnlockBonus: {
+    marginTop: 6,
+    color: "#92400E",
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  newBadgeMore: {
+    marginTop: 8,
+    color: THEME.text,
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  dashboardBadgesHint: {
+    color: THEME.textSoft,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+    marginBottom: 14,
+    marginTop: -4
+  },
+  badgeCategorySection: {
+    marginBottom: 18
+  },
+  badgeCategoryTitle: {
+    color: THEME.text,
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 10
+  },
+  badgeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between"
+  },
+  badgeCard: {
+    width: "47%",
+    minHeight: 148,
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#FDE68A",
+    shadowColor: "#F59E0B",
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3
+  },
+  badgeCardLocked: {
+    backgroundColor: "#F1F5F9",
+    borderColor: "#E2E8F0",
+    shadowOpacity: 0
+  },
+  badgeEmoji: {
+    fontSize: 28
+  },
+  badgeEmojiLocked: {
+    opacity: 0.35
+  },
+  badgeTitle: {
+    marginTop: 8,
+    color: THEME.text,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  badgeDescription: {
+    marginTop: 4,
+    color: THEME.textSoft,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "600"
+  },
+  badgeReward: {
+    marginTop: 8,
+    color: "#92400E",
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  badgeTextLocked: {
+    opacity: 0.55
   }
 });
