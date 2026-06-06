@@ -20,7 +20,7 @@ import {
   ensureMicPermission,
   stopVoiceAnswerSession
 } from "./voiceAnswer";
-import { TEACHER_LABEL, TEACHER_NAME } from "./teacherConfig";
+import { TEACHER_LABEL, TEACHER_EMOJI } from "./teacherConfig";
 
 function AnimatedItem({ delay, children, style }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -58,7 +58,7 @@ function AnimatedItem({ delay, children, style }) {
   );
 }
 
-function WhiteboardDrawing({ visual, slideKey, revealedCount, boardLabel }) {
+function WhiteboardDrawing({ visual, slideKey, revealedCount, boardLabel, highlightIndex }) {
   if (!visual) {
     return (
       <View style={styles.boardEmpty}>
@@ -80,12 +80,17 @@ function WhiteboardDrawing({ visual, slideKey, revealedCount, boardLabel }) {
               return null;
             }
 
+            const highlighted = highlightIndex === index;
+
             return (
               <AnimatedItem key={`${slideKey}-${index}`} delay={80} style={styles.boardDotWrap}>
-                <View style={styles.boardCircle}>
+                {highlighted ? <Text style={styles.boardPointMarker}>👆</Text> : null}
+                <View style={[styles.boardCircle, highlighted && styles.boardCircleHighlight]}>
                   <Text style={styles.boardCircleEmoji}>{visual.item}</Text>
                 </View>
-                <Text style={styles.boardDotNumber}>{index + 1}</Text>
+                <Text style={[styles.boardDotNumber, highlighted && styles.boardDotNumberHighlight]}>
+                  {index + 1}
+                </Text>
               </AnimatedItem>
             );
           })}
@@ -292,28 +297,26 @@ function buildAnswerChoices(expected, maxHint = 10) {
   return Array.from({ length: Math.min(limit, 15) }, (_, index) => index + 1);
 }
 
-function TeacherFigure({ speaking, pointing }) {
-  const bobAnim = useRef(new Animated.Value(0)).current;
-  const armAnim = useRef(new Animated.Value(0)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
+function TeacherImage({ speaking }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!speaking) {
-      bobAnim.setValue(0);
+      pulseAnim.setValue(1);
       return undefined;
     }
 
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(bobAnim, {
-          toValue: 1,
-          duration: 420,
+        Animated.timing(pulseAnim, {
+          toValue: 1.04,
+          duration: 450,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true
         }),
-        Animated.timing(bobAnim, {
-          toValue: 0,
-          duration: 420,
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 450,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true
         })
@@ -321,111 +324,11 @@ function TeacherFigure({ speaking, pointing }) {
     );
     loop.start();
     return () => loop.stop();
-  }, [speaking, bobAnim]);
-
-  useEffect(() => {
-    Animated.spring(armAnim, {
-      toValue: pointing ? 1 : 0.25,
-      friction: 7,
-      tension: 70,
-      useNativeDriver: true
-    }).start();
-  }, [pointing, armAnim]);
-
-  useEffect(() => {
-    if (!speaking) {
-      glowAnim.setValue(0);
-      return undefined;
-    }
-
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true
-        })
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [speaking, glowAnim]);
-
-  const figureStyle = {
-    transform: [
-      {
-        translateY: bobAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, -4]
-        })
-      }
-    ]
-  };
-
-  const armStyle = {
-    transform: [
-      {
-        rotate: armAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: ["-6deg", "-32deg"]
-        })
-      },
-      {
-        translateX: armAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, 6]
-        })
-      }
-    ]
-  };
-
-  const glowStyle = {
-    opacity: glowAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.35, 0.85]
-    })
-  };
+  }, [speaking, pulseAnim]);
 
   return (
-    <Animated.View style={[styles.teacherFigure, figureStyle]}>
-      <Animated.View style={[styles.teacherSpotlight, glowStyle]} />
-      <View style={styles.teacherHead}>
-        <View style={styles.teacherHair} />
-        <View style={styles.teacherFace}>
-          <View style={styles.teacherEyesRow}>
-            <View style={styles.teacherEye} />
-            <View style={styles.teacherEye} />
-          </View>
-          <Text style={styles.teacherMouth}>{speaking ? "😮" : "🙂"}</Text>
-        </View>
-      </View>
-      <View style={styles.teacherNeck} />
-      <View style={styles.teacherShirt}>
-        <View style={styles.teacherTie} />
-        <Text style={styles.teacherInitial}>{TEACHER_NAME.charAt(0)}</Text>
-      </View>
-      <View style={styles.teacherLegsRow}>
-        <View style={styles.teacherLeg} />
-        <View style={styles.teacherLeg} />
-      </View>
-      <View style={styles.teacherFeetRow}>
-        <View style={styles.teacherShoe} />
-        <View style={styles.teacherShoe} />
-      </View>
-      <View style={styles.teacherBookHand}>
-        <View style={styles.teacherBook} />
-      </View>
-      <Animated.View style={[styles.teacherPointArm, armStyle]}>
-        <View style={styles.teacherArmLine} />
-        <Text style={styles.teacherPointHand}>{pointing ? "👆" : "✋"}</Text>
-      </Animated.View>
+    <Animated.View style={[styles.teacherImageWrap, { transform: [{ scale: pulseAnim }] }]}>
+      <Text style={styles.teacherImageEmoji}>{TEACHER_EMOJI}</Text>
     </Animated.View>
   );
 }
@@ -447,14 +350,7 @@ function TeacherSpeechBubble({ visible, text }) {
   );
 }
 
-function ClassroomStage({
-  speaking,
-  pointing,
-  statusText,
-  slideTitle,
-  onReplay,
-  children
-}) {
+function ClassroomStage({ speaking, statusText, slideTitle, onReplay, children }) {
   return (
     <View style={styles.classroomStage}>
       <View style={styles.classroomWall}>
@@ -463,7 +359,7 @@ function ClassroomStage({
             visible={speaking}
             text={statusText === "👂 Listen closely!" ? "Watch the board!" : statusText}
           />
-          <TeacherFigure speaking={speaking} pointing={pointing} />
+          <TeacherImage speaking={speaking} />
           <View style={styles.teacherNamePlate}>
             <Text style={styles.teacherNamePlateTitle}>{TEACHER_LABEL}</Text>
             <Text style={styles.teacherNamePlateSub}>{slideTitle}</Text>
@@ -584,6 +480,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
   const [voiceHint, setVoiceHint] = useState("");
   const [heardText, setHeardText] = useState("");
   const [revealedCount, setRevealedCount] = useState(0);
+  const [pointAtIndex, setPointAtIndex] = useState(null);
   const [liveCaption, setLiveCaption] = useState(slide.body);
   const [answerPrompt, setAnswerPrompt] = useState(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -769,7 +666,16 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
     setSpeaking(true);
     setLiveCaption(slide.body);
     setRevealedCount(syncReveal ? 0 : slide.visual?.count ?? 0);
+    setPointAtIndex(null);
     startPulse();
+
+    const syncPointTarget = (step) => {
+      if (typeof step.reveal === "number" && step.reveal > 0) {
+        setPointAtIndex(step.reveal - 1);
+        return;
+      }
+      setPointAtIndex(null);
+    };
 
     const handleStepStart = (step) => {
       clearAnswerTimeout();
@@ -782,6 +688,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       if (typeof step.reveal === "number") {
         setRevealedCount(step.reveal);
       }
+      syncPointTarget(step);
     };
 
     const handleSlideSpeechDone = () => {
@@ -789,6 +696,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       setSpeaking(false);
       setAnswerPrompt(null);
       answerPromptRef.current = null;
+      setPointAtIndex(null);
       stopPulse();
       stopVoiceSession();
       onSlideSpeechProgress?.(true);
@@ -800,6 +708,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       answerPromptRef.current = prompt;
       setAnswerPrompt(prompt);
       setLiveCaption(buildAnswerPrompt(step.waitForAnswer));
+      syncPointTarget(step);
       setSpeaking(false);
       stopPulse();
       if (voiceAvailableRef.current) {
@@ -848,7 +757,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
   const statusText = answerPrompt
     ? "👂 Your turn — say the number!"
     : speaking
-      ? "🎤 Teaching at the board…"
+      ? "🎤 Teaching at the whiteboard…"
       : "👂 Listen closely!";
 
   const captionLabel = answerPrompt
@@ -857,13 +766,10 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       ? `${TEACHER_LABEL} says:`
       : "Remember:";
 
-  const pointingAtBoard = speaking || Boolean(answerPrompt) || revealedCount > 0;
-
   return (
     <View style={styles.classroom}>
       <ClassroomStage
         speaking={speaking}
-        pointing={pointingAtBoard}
         statusText={statusText}
         slideTitle={slide.title}
         onReplay={replaySpeech}
@@ -883,6 +789,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
               slideKey={slideKey}
               revealedCount={usesRevealSync ? revealedCount : undefined}
               boardLabel={getBoardCountLabel(slide.visual)}
+              highlightIndex={pointAtIndex}
             />
           </View>
         </View>
@@ -974,154 +881,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800"
   },
-  teacherFigure: {
-    width: 88,
-    height: 148,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    position: "relative"
-  },
-  teacherSpotlight: {
-    position: "absolute",
-    top: 0,
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "#FDE68A"
-  },
-  teacherHead: {
-    width: 52,
-    height: 52,
-    alignItems: "center",
-    zIndex: 2
-  },
-  teacherHair: {
-    position: "absolute",
-    top: 0,
-    width: 54,
-    height: 22,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    backgroundColor: "#3F2A1D"
-  },
-  teacherFace: {
-    marginTop: 10,
-    width: 48,
-    height: 42,
-    borderRadius: 22,
-    backgroundColor: "#F5CBA7",
+  teacherImageWrap: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 3,
+    borderColor: "#6366F1",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#E8B48A"
+    marginTop: 28
   },
-  teacherEyesRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 4
-  },
-  teacherEye: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#1E293B"
-  },
-  teacherMouth: {
-    fontSize: 14,
-    marginTop: 2
-  },
-  teacherNeck: {
-    width: 16,
-    height: 8,
-    backgroundColor: "#F5CBA7",
-    marginTop: -2,
-    zIndex: 1
-  },
-  teacherShirt: {
-    width: 56,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#2563EB",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#1D4ED8",
-    zIndex: 1
-  },
-  teacherTie: {
-    position: "absolute",
-    top: 0,
-    width: 10,
-    height: 22,
-    backgroundColor: "#DC2626",
-    borderBottomLeftRadius: 4,
-    borderBottomRightRadius: 4
-  },
-  teacherInitial: {
-    marginTop: 8,
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "900"
-  },
-  teacherLegsRow: {
-    flexDirection: "row",
-    gap: 6,
-    marginTop: 2,
-    zIndex: 1
-  },
-  teacherLeg: {
-    width: 18,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: "#334155"
-  },
-  teacherFeetRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 2,
-    zIndex: 1
-  },
-  teacherShoe: {
-    width: 22,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#1E293B"
-  },
-  teacherBookHand: {
-    position: "absolute",
-    left: 2,
-    bottom: 52,
-    zIndex: 3
-  },
-  teacherBook: {
-    width: 16,
-    height: 22,
-    borderRadius: 3,
-    backgroundColor: "#F97316",
-    borderWidth: 1,
-    borderColor: "#EA580C"
-  },
-  teacherPointArm: {
-    position: "absolute",
-    right: -8,
-    bottom: 72,
-    width: 54,
-    height: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    zIndex: 4
-  },
-  teacherArmLine: {
-    width: 34,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#F5CBA7",
-    borderWidth: 1,
-    borderColor: "#E8B48A"
-  },
-  teacherPointHand: {
-    fontSize: 18,
-    marginLeft: -4
+  teacherImageEmoji: {
+    fontSize: 48,
+    lineHeight: 54
   },
   speechBubbleWrap: {
     position: "absolute",
@@ -1215,7 +988,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8
   },
-  boardDotWrap: { alignItems: "center", gap: 4 },
+  boardDotWrap: { alignItems: "center", gap: 2, minWidth: 48 },
+  boardPointMarker: {
+    fontSize: 16,
+    lineHeight: 18,
+    marginBottom: -2
+  },
   boardCircle: {
     width: 44,
     height: 44,
@@ -1226,10 +1004,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.12)"
   },
+  boardCircleHighlight: {
+    borderColor: "#FDE047",
+    backgroundColor: "rgba(253,224,71,0.35)",
+    borderWidth: 4,
+    transform: [{ scale: 1.08 }]
+  },
   boardCircleFade: { opacity: 0.35 },
   boardCircleEmoji: { fontSize: 22 },
   boardCross: { position: "absolute", color: "#FCA5A5", fontSize: 28, fontWeight: "900" },
   boardDotNumber: { color: "#FDE047", fontSize: 12, fontWeight: "900" },
+  boardDotNumberHighlight: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2
+  },
   boardAnswerBox: {
     paddingVertical: 8,
     paddingHorizontal: 16,

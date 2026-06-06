@@ -3,6 +3,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -70,6 +71,8 @@ import { TEACHER_LABEL } from "./teacherConfig";
 
 const MAX_ROUNDS = 12;
 const MAX_SCORE = 5000;
+const APP_TOP_INSET =
+  Platform.OS === "android" ? (StatusBar.currentHeight ?? 28) + 8 : 10;
 const HIGH_SCORES_KEY = "@mathGarden/highScores";
 const REWARDS_KEY = "@mathGarden/rewards";
 
@@ -971,6 +974,21 @@ export default function App() {
   const [lessonFinished, setLessonFinished] = useState(false);
   const [lessonReplay, setLessonReplay] = useState(false);
   const [slideSpeechComplete, setSlideSpeechComplete] = useState(false);
+  const lessonSlideRef = useRef(lessonSlide);
+  const slideSpeechCompleteRef = useRef(slideSpeechComplete);
+  const progressRef = useRef(progress);
+
+  useEffect(() => {
+    lessonSlideRef.current = lessonSlide;
+  }, [lessonSlide]);
+
+  useEffect(() => {
+    slideSpeechCompleteRef.current = slideSpeechComplete;
+  }, [slideSpeechComplete]);
+
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
 
   const currentHighScore = highScores[selectedGame.id]?.best ?? 0;
   const unlockedBadgeCount = Object.keys(rewards.badges).length;
@@ -1135,17 +1153,58 @@ export default function App() {
     if (screen !== "lesson" || lessonReplay || lessonFinished || !selectedLesson) {
       return;
     }
-    if (isLessonComplete(progress, selectedLesson.id)) {
+
+    const currentProgress = progressRef.current;
+    if (isLessonComplete(currentProgress, selectedLesson.id)) {
       return;
     }
 
-    const savedSlide = getLessonProgress(progress, selectedLesson.id).slide ?? 0;
-    if (savedSlide === lessonSlide) {
+    const lesson = selectedLesson;
+    const savedSlide = getLessonProgress(currentProgress, selectedLesson.id).slide ?? 0;
+    const activeSlide = lessonSlideRef.current;
+    const speechDone = slideSpeechCompleteRef.current;
+    let resumeSlide = Math.max(savedSlide, activeSlide);
+
+    if (speechDone) {
+      resumeSlide = Math.max(resumeSlide, Math.min(activeSlide + 1, lesson.slides.length - 1));
+    }
+
+    resumeSlide = Math.min(resumeSlide, lesson.slides.length - 1);
+
+    if (savedSlide === resumeSlide) {
       return;
     }
 
-    const updated = saveLessonCheckpoint(progress, selectedLesson.id, lessonSlide);
+    const updated = saveLessonCheckpoint(currentProgress, selectedLesson.id, resumeSlide);
     setProgress(updated);
+    progressRef.current = updated;
+    saveProgressData(updated);
+  }
+
+  function handleSlideSpeechProgress(complete) {
+    setSlideSpeechComplete(complete);
+    slideSpeechCompleteRef.current = complete;
+
+    if (!complete || lessonReplay || lessonFinished || !selectedLesson) {
+      return;
+    }
+
+    const currentProgress = progressRef.current;
+    if (isLessonComplete(currentProgress, selectedLesson.id)) {
+      return;
+    }
+
+    const activeSlide = lessonSlideRef.current;
+    const resumeAt = Math.min(activeSlide + 1, selectedLesson.slides.length - 1);
+    const savedSlide = getLessonProgress(currentProgress, selectedLesson.id).slide ?? 0;
+
+    if (resumeAt <= savedSlide) {
+      return;
+    }
+
+    const updated = saveLessonCheckpoint(currentProgress, selectedLesson.id, resumeAt);
+    setProgress(updated);
+    progressRef.current = updated;
     saveProgressData(updated);
   }
 
@@ -1232,8 +1291,9 @@ export default function App() {
 
     const nextSlide = lessonSlide + 1;
     if (!replaying) {
-      const updated = markLessonStepComplete(progress, lesson.id, lessonSlide);
+      const updated = markLessonStepComplete(progressRef.current, lesson.id, lessonSlide);
       setProgress(updated);
+      progressRef.current = updated;
       saveProgressData(updated);
     }
     setLessonSlide(nextSlide);
@@ -1918,7 +1978,7 @@ export default function App() {
                   slide={slide}
                   slideIndex={lessonSlide}
                   slideKey={`${selectedLesson.id}-${lessonSlide}-${lessonSlideKey}`}
-                  onSlideSpeechProgress={setSlideSpeechComplete}
+                  onSlideSpeechProgress={handleSlideSpeechProgress}
                 />
                 <Pressable
                   onPress={nextLessonSlide}
@@ -1933,9 +1993,17 @@ export default function App() {
                     colors={slideSpeechComplete ? lesson.gradient : ["#CBD5E1", "#94A3B8"]}
                     style={styles.lessonNextGradient}
                   >
-                    <Text style={styles.lessonNextText}>
+                    <Text
+                      style={[
+                        styles.lessonNextText,
+                        !slideSpeechComplete && styles.lessonNextTextWaiting
+                      ]}
+                      numberOfLines={2}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.82}
+                    >
                       {!slideSpeechComplete
-                        ? `Finish this step with ${TEACHER_LABEL} first…`
+                        ? `Listen to ${TEACHER_LABEL} first`
                         : isLastSlide
                           ? "Finish Class! 🎉"
                           : "Next Step →"}
@@ -2074,7 +2142,7 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    paddingTop: 8
+    paddingTop: APP_TOP_INSET
   },
   backgroundExtras: {
     ...StyleSheet.absoluteFillObject,
@@ -2131,13 +2199,13 @@ const styles = StyleSheet.create({
   },
   screen: {
     flexGrow: 1,
-    paddingTop: 12,
+    paddingTop: 8,
     paddingHorizontal: 16,
     paddingBottom: 28,
     zIndex: 1
   },
   menuScreen: {
-    paddingTop: 8
+    paddingTop: 0
   },
   menuHeader: {
     flexDirection: "row",
@@ -2610,19 +2678,32 @@ const styles = StyleSheet.create({
   lessonNextButton: {
     marginTop: 6,
     borderRadius: 16,
-    overflow: "hidden"
+    overflow: "hidden",
+    alignSelf: "stretch"
   },
   lessonNextButtonDisabled: {
-    opacity: 0.85
+    opacity: 0.88
   },
   lessonNextGradient: {
-    paddingVertical: 14,
-    alignItems: "center"
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 50
   },
   lessonNextText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "900"
+    fontWeight: "900",
+    textAlign: "center",
+    lineHeight: 20,
+    width: "100%"
+  },
+  lessonNextTextWaiting: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: "800",
+    paddingHorizontal: 4
   },
   lessonFinishBlock: {
     alignItems: "center",

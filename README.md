@@ -6,7 +6,7 @@ Expo slug: **`number-match-garden`** (legacy package name).
 
 ## Math Classes (listen, answer, and watch)
 
-Before jumping into games, kids join **Teacher Usama** for short spoken lessons with an animated **whiteboard**. Finish a class to unlock **only the games that class teaches** — not the whole category tree at once.
+Before jumping into games, kids join **Teacher Maya** for short spoken lessons with an animated **whiteboard**. Finish a class to unlock **only the games that class teaches** — not the whole category tree at once.
 
 | # | Class | What it teaches | Unlocks |
 |---|-------|-----------------|---------|
@@ -31,9 +31,9 @@ Class progress is saved in `@mathGarden/progress` under `lessons`.
 
 ### Classroom experience
 
-- **Teacher Usama** speaks each slide aloud (`expo-speech`) while the **whiteboard** draws circles, groups, and equations step by step
-- **Interactive counting:** Usama can pause and ask the child to say or tap the answer; correct answers get praise, wrong answers get a gentle “try again” without stopping the lesson
-- **Next Step** stays disabled until Usama finishes the current slide narration
+- **Teacher Maya** speaks each slide aloud (`expo-speech`) while the **whiteboard** draws circles, groups, and equations step by step
+- **Interactive counting:** Teacher Maya can pause and ask the child to say or tap the answer; correct answers get praise, wrong answers get a gentle “try again” without stopping the lesson
+- **Next Step** stays disabled until Teacher Maya finishes the current slide narration
 - Tap **🔊 Again** to replay the teacher; captions show the same words on screen
 - **Replay classes** anytime from the class list — replays do **not** change saved progress or re-lock games
 
@@ -78,7 +78,7 @@ During games, students can **tap the microphone** and **say the answer out loud*
 
 ## Features
 
-- **Interactive Math Classes** — Teacher Usama at the whiteboard, tap/voice answers on counting slides
+- **Interactive Math Classes** — Teacher Maya at the whiteboard, tap/voice answers on counting slides
 - **Per-class game unlock** — finish Counting Class → counting games only; Compare Class → compare games only; and so on
 - **Class replay** — review any completed class without resetting progress
 - **Reset all progress** — home-screen button clears classes, coins, badges, scores, and locks games again (with confirmation)
@@ -217,7 +217,7 @@ The finish screen shows up to 3 new badges at a time (with a count if more were 
 | Screen | Purpose |
 |--------|---------|
 | **Menu** | Pick a game by class section; coins, badges, learning path, reset progress |
-| **Math Classes** | Browse and start/replay Teacher Usama lessons |
+| **Math Classes** | Browse and start/replay Teacher Maya lessons |
 | **Classroom** | Whiteboard lesson with speech and optional tap/voice answers |
 | **Level select** | Choose Starter/Advanced tier and level 1–10 |
 | **Game** | Play 12 rounds; see score, progress, and personal best |
@@ -231,7 +231,7 @@ The finish screen shows up to 3 new badges at a time (with a count if more were 
 | React 19 | UI framework |
 | React Native 0.81 | Mobile components |
 | `expo-linear-gradient` | Gradient backgrounds and cards |
-| `expo-speech` | Spoken math classes (Teacher Usama) |
+| `expo-speech` | Spoken math classes (Teacher Maya) |
 | `expo-speech-recognition` | Students speak answers in games (dev build) |
 | `@react-native-async-storage/async-storage` | High scores, coins, badges, and lesson progress |
 

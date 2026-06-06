@@ -1,10 +1,12 @@
+import { TEACHER_LABEL } from "./teacherConfig";
+
 function classSlides(topic, emoji, tip, visual) {
   return [
     {
       title: `What is ${topic}?`,
       emoji,
       body: tip,
-      tip: "Watch the whiteboard and listen to Teacher Usama!",
+      tip: `Watch the whiteboard and listen to ${TEACHER_LABEL}.`,
       visual
     },
     {

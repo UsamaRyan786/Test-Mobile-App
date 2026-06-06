@@ -1,2 +1,3 @@
-export const TEACHER_NAME = "Usama";
-export const TEACHER_LABEL = "Teacher Usama";
+export const TEACHER_NAME = "Maya";
+export const TEACHER_LABEL = "Teacher Maya";
+export const TEACHER_EMOJI = "👩‍🏫";

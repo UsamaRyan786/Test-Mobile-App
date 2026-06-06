@@ -79,7 +79,7 @@ export function buildAnswerPrompt(expected) {
 
 export function buildAnswerReprompt(expected) {
   const word = numberWord(expected);
-  return `Hello? I am still waiting. Say ${word} out loud, or tap ${expected} on the screen.`;
+  return `Pardon me, I am still waiting. Please say ${word} clearly, or tap ${expected} on the screen.`;
 }
 
 export const ANSWER_SILENCE_MS = 6000;
