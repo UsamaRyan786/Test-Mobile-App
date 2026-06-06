@@ -950,6 +950,7 @@ export default function App() {
   const [lessonSlideKey, setLessonSlideKey] = useState(0);
   const [lessonFinished, setLessonFinished] = useState(false);
   const [lessonReplay, setLessonReplay] = useState(false);
+  const [slideSpeechComplete, setSlideSpeechComplete] = useState(false);
 
   const currentHighScore = highScores[selectedGame.id]?.best ?? 0;
   const unlockedBadgeCount = Object.keys(rewards.badges).length;
@@ -1160,10 +1161,14 @@ export default function App() {
     setLessonSlide(completed ? 0 : getLessonProgress(progress, lesson.id).slide || 0);
     setLessonSlideKey((key) => key + 1);
     setLessonFinished(false);
+    setSlideSpeechComplete(false);
     setScreen("lesson");
   }
 
   function nextLessonSlide() {
+    if (!slideSpeechComplete) {
+      return;
+    }
     stopClassroomSpeech();
     const lesson = selectedLesson;
     const isLast = lessonSlide >= lesson.slides.length - 1;
@@ -1188,11 +1193,13 @@ export default function App() {
     }
     setLessonSlide(nextSlide);
     setLessonSlideKey((key) => key + 1);
+    setSlideSpeechComplete(false);
   }
 
   function replayLesson() {
     stopClassroomSpeech();
     setLessonReplay(true);
+    setSlideSpeechComplete(false);
     setLessonSlide(0);
     setLessonSlideKey((key) => key + 1);
     setLessonFinished(false);
@@ -1298,7 +1305,7 @@ export default function App() {
               <Text style={styles.logoBadgeText}>🌈</Text>
             </LinearGradient>
             <View style={styles.heroCopy}>
-              <Text style={styles.logoTitle}>Math Garden</Text>
+              <Text style={styles.logoTitle}>Math Talk</Text>
               <Text style={styles.logoSubtitle}>Fun & colorful math for curious kids!</Text>
             </View>
             <Pressable
@@ -1859,14 +1866,27 @@ export default function App() {
                   slide={slide}
                   slideIndex={lessonSlide}
                   slideKey={`${selectedLesson.id}-${lessonSlide}-${lessonSlideKey}`}
+                  onSlideSpeechProgress={setSlideSpeechComplete}
                 />
                 <Pressable
                   onPress={nextLessonSlide}
-                  style={({ pressed }) => [styles.lessonNextButton, pressed && styles.pressedButton]}
+                  disabled={!slideSpeechComplete}
+                  style={({ pressed }) => [
+                    styles.lessonNextButton,
+                    !slideSpeechComplete && styles.lessonNextButtonDisabled,
+                    pressed && slideSpeechComplete && styles.pressedButton
+                  ]}
                 >
-                  <LinearGradient colors={lesson.gradient} style={styles.lessonNextGradient}>
+                  <LinearGradient
+                    colors={slideSpeechComplete ? lesson.gradient : ["#CBD5E1", "#94A3B8"]}
+                    style={styles.lessonNextGradient}
+                  >
                     <Text style={styles.lessonNextText}>
-                      {isLastSlide ? "Finish Class! 🎉" : "Next Step →"}
+                      {!slideSpeechComplete
+                        ? "Finish this step with Teacher Maya first…"
+                        : isLastSlide
+                          ? "Finish Class! 🎉"
+                          : "Next Step →"}
                     </Text>
                   </LinearGradient>
                 </Pressable>
@@ -2525,6 +2545,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 22,
     overflow: "hidden"
+  },
+  lessonNextButtonDisabled: {
+    opacity: 0.85
   },
   lessonNextGradient: {
     paddingVertical: 16,

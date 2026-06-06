@@ -61,6 +61,21 @@ function numberWord(value) {
   return NUMBER_WORDS[value] ?? String(value);
 }
 
+export function buildCorrectFeedback(expected) {
+  const word = numberWord(expected);
+  return `Wonderful! Yes! ${capitalize(word)} is correct! You are doing amazing!`;
+}
+
+export function buildWrongFeedback(expected) {
+  const word = numberWord(expected);
+  return `Not quite. The answer is ${expected}. Say ${word} again.`;
+}
+
+export function buildAnswerPrompt(expected) {
+  const word = numberWord(expected);
+  return `Your turn! Say ${word}. Tap ${expected} or use the microphone.`;
+}
+
 function buildCountingSteps(slide, lesson, slideIndex) {
   const visual = slide.visual;
   const count = visual.count;
@@ -96,24 +111,33 @@ function buildCountingSteps(slide, lesson, slideIndex) {
       delayBefore: index === 1 ? 350 : 250,
       text:
         index === 1
-          ? `One! Here is one ${labels.singular}. Say one with me. One.`
-          : `${capitalize(word)}! That is ${word} ${labels.plural}. Say ${word}.`,
+          ? `One! Here is one ${labels.singular}. Look at the board.`
+          : `${capitalize(word)}! Now we have ${word} ${labels.plural} on the board.`,
       reveal: index,
-      pauseAfter: index === count ? 650 : 500,
+      pauseAfter: 450,
       rate: 0.68
+    });
+    steps.push({
+      delayBefore: 200,
+      text: `Your turn! Say ${word}.`,
+      reveal: index,
+      waitForAnswer: index,
+      pauseAfter: 350,
+      rate: 0.72
     });
   }
 
   steps.push({
     delayBefore: 350,
-    text: `Great counting! We found ${count} ${labels.plural}. The last number we said is ${numberWord(count)}. So the answer is ${count}!`,
+    text: `How many ${labels.plural} did we count altogether? Say the total number.`,
     reveal: count,
-    pauseAfter: 450
+    waitForAnswer: count,
+    pauseAfter: 400
   });
 
   steps.push({
     delayBefore: 250,
-    text: slide.tip,
+    text: `Yes! ${capitalize(numberWord(count))}! There are ${count} ${labels.plural}. ${slide.tip}`,
     reveal: count,
     pauseAfter: 300
   });
@@ -183,6 +207,16 @@ export function buildSlideNarration(slide, lesson, slideIndex = 0) {
   return plan.steps.map((step) => step.text).join(" ");
 }
 
+export function speakLessonFeedback(text, callbacks = {}) {
+  Speech.stop();
+  Speech.speak(text, {
+    ...SPEECH_OPTIONS,
+    onDone: callbacks.onDone,
+    onStopped: callbacks.onDone,
+    onError: callbacks.onDone
+  });
+}
+
 export function speakLesson(text, callbacks = {}) {
   stopLessonSpeech();
   Speech.speak(text, {
@@ -200,9 +234,11 @@ export function speakLessonSequence(steps, callbacks = {}) {
   let stepIndex = 0;
   let delayTimer = null;
   let pauseTimer = null;
+  let continueNext = null;
 
   function cleanup() {
     cancelled = true;
+    continueNext = null;
     if (delayTimer) {
       clearTimeout(delayTimer);
       delayTimer = null;
@@ -244,6 +280,16 @@ export function speakLessonSequence(steps, callbacks = {}) {
             return;
           }
           callbacks.onStepEnd?.(step, stepIndex - 1);
+
+          if (step.waitForAnswer != null) {
+            continueNext = () => {
+              continueNext = null;
+              pauseTimer = setTimeout(speakNext, step.pauseAfter ?? 300);
+            };
+            callbacks.onWaitForAnswer?.(step, continueNext);
+            return;
+          }
+
           pauseTimer = setTimeout(speakNext, step.pauseAfter ?? 350);
         },
         onStopped: finish,
@@ -256,9 +302,20 @@ export function speakLessonSequence(steps, callbacks = {}) {
     }, step.delayBefore ?? 0);
   }
 
-  activeSequence = { stop: cleanup };
+  activeSequence = {
+    stop: cleanup,
+    continue: () => {
+      if (continueNext) {
+        continueNext();
+      }
+    }
+  };
   speakNext();
   return activeSequence;
+}
+
+export function continueLessonSequence() {
+  activeSequence?.continue?.();
 }
 
 export function stopLessonSpeech() {
@@ -276,7 +333,7 @@ export function buildLessonIntro(lesson) {
 }
 
 export function buildLessonOutro(lesson) {
-  return `Wonderful work! You finished ${lesson.title}. Your matching games are ready in the math garden!`;
+  return `Wonderful work! You finished ${lesson.title}. Your matching games are ready in Math Talk!`;
 }
 
 export function getBoardCountLabel(visual) {

@@ -10,15 +10,19 @@ import {
 export default function VoiceAnswerPanel({ choices, disabled, roundKey, onAnswer }) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [hint, setHint] = useState("Tap the mic and say your answer!");
+  const [hint, setHint] = useState("");
   const [available, setAvailable] = useState(false);
+  const [checked, setChecked] = useState(false);
   const sessionRef = useRef(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     checkVoiceAnswerSupport().then((result) => {
       setAvailable(result.available);
-      if (!result.available && result.reason) {
+      setChecked(true);
+      if (result.available) {
+        setHint("Tap the mic and say your answer!");
+      } else if (result.reason) {
         setHint(result.reason);
       }
     });
@@ -114,6 +118,10 @@ export default function VoiceAnswerPanel({ choices, disabled, roundKey, onAnswer
     })
   };
 
+  if (checked && !available) {
+    return null;
+  }
+
   return (
     <View style={styles.panel}>
       <Text style={styles.title}>🎤 Speak Your Answer</Text>
@@ -136,10 +144,7 @@ export default function VoiceAnswerPanel({ choices, disabled, roundKey, onAnswer
       </Pressable>
 
       {transcript ? <Text style={styles.transcript}>You said: "{transcript}"</Text> : null}
-      <Text style={styles.hint}>{hint}</Text>
-      {!available ? (
-        <Text style={styles.fallbackNote}>You can still tap one of the answer buttons below.</Text>
-      ) : null}
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </View>
   );
 }

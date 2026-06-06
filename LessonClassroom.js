@@ -1,6 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
-import { buildSlideSpeechPlan, getBoardCountLabel, speakLesson, speakLessonSequence, stopLessonSpeech } from "./lessonSpeech";
+import {
+  buildAnswerPrompt,
+  buildCorrectFeedback,
+  buildSlideSpeechPlan,
+  buildWrongFeedback,
+  getBoardCountLabel,
+  getIsSpeaking,
+  speakLesson,
+  speakLessonFeedback,
+  speakLessonSequence,
+  stopLessonSpeech
+} from "./lessonSpeech";
+import {
+  checkVoiceAnswerSupport,
+  createVoiceAnswerSession,
+  ensureMicPermission,
+  stopVoiceAnswerSession
+} from "./voiceAnswer";
 
 const TEACHER = {
   name: "Teacher Maya",
@@ -272,22 +289,135 @@ function WhiteboardDrawing({ visual, slideKey, revealedCount, boardLabel }) {
   return null;
 }
 
-export default function LessonClassroom({ lesson, slide, slideIndex, slideKey }) {
+function buildAnswerChoices(expected, maxHint = 10) {
+  const limit = Math.max(maxHint, expected + 2, 5);
+  return Array.from({ length: Math.min(limit, 15) }, (_, index) => index + 1);
+}
+
+function LessonAnswerPanel({ expected, listening, voiceAvailable, heardText, voiceHint, onAnswer, onMicPress }) {
+  const choices = buildAnswerChoices(expected);
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true
+        })
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim]);
+
+  const pulseStyle = {
+    transform: [
+      {
+        scale: pulseAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1, 1.08]
+        })
+      }
+    ]
+  };
+
+  return (
+    <View style={styles.answerPanel}>
+      <Text style={styles.answerPanelTitle}>🙋 Your turn!</Text>
+      <Text style={styles.answerPanelPrompt}>
+        {voiceAvailable
+          ? `Say ${expected} out loud, or tap ${expected} below.`
+          : `Tap the number ${expected} below to answer Teacher Maya.`}
+      </Text>
+      {!voiceAvailable && voiceHint ? <Text style={styles.answerExpoHint}>📱 {voiceHint}</Text> : null}
+      <View style={styles.answerChoices}>
+        {choices.map((choice) => {
+          const isTarget = choice === expected;
+          const button = (
+            <Pressable
+              onPress={() => onAnswer(choice)}
+              style={({ pressed }) => [
+                styles.answerChoice,
+                isTarget && styles.answerChoiceHint,
+                pressed && styles.answerChoicePressed
+              ]}
+            >
+              <Text style={styles.answerChoiceText}>{choice}</Text>
+            </Pressable>
+          );
+
+          if (isTarget && !voiceAvailable) {
+            return (
+              <Animated.View key={choice} style={pulseStyle}>
+                {button}
+              </Animated.View>
+            );
+          }
+
+          return <View key={choice}>{button}</View>;
+        })}
+      </View>
+      {voiceAvailable ? (
+        <>
+          <Pressable
+            onPress={onMicPress}
+            style={({ pressed }) => [
+              styles.answerMicButton,
+              listening && styles.answerMicButtonActive,
+              pressed && styles.answerChoicePressed
+            ]}
+          >
+            <Text style={styles.answerMicText}>
+              {listening ? "🔴 Listening… say your number now!" : "🎤 Tap mic and say your answer"}
+            </Text>
+          </Pressable>
+          {heardText ? <Text style={styles.answerHeardText}>Heard: "{heardText}"</Text> : null}
+        </>
+      ) : (
+        <Text style={styles.answerTapHint}>👆 Tap {expected} — speaking aloud does not work in Expo Go.</Text>
+      )}
+    </View>
+  );
+}
+
+export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, onSlideSpeechProgress }) {
   const [speaking, setSpeaking] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [voiceAvailable, setVoiceAvailable] = useState(false);
+  const [voiceHint, setVoiceHint] = useState("");
+  const [heardText, setHeardText] = useState("");
   const [revealedCount, setRevealedCount] = useState(0);
   const [liveCaption, setLiveCaption] = useState(slide.body);
+  const [answerPrompt, setAnswerPrompt] = useState(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const pulseLoopRef = useRef(null);
+  const voiceSessionRef = useRef(null);
+  const sequenceContinueRef = useRef(null);
+  const voiceAvailableRef = useRef(false);
+  const answerPromptRef = useRef(null);
   const usesRevealSync =
     slide.visual?.type === "dots" || slide.visual?.type === "match" || slide.visual?.type === "celebrate";
 
-  useEffect(() => {
-    let active = true;
-    const plan = buildSlideSpeechPlan(slide, lesson, slideIndex);
-    const syncReveal =
-      plan.mode === "sequence" &&
-      (slide.visual?.type === "dots" || slide.visual?.type === "match" || slide.visual?.type === "celebrate");
+  const stopVoiceSession = useCallback(() => {
+    voiceSessionRef.current?.stop();
+    voiceSessionRef.current = null;
+    stopVoiceAnswerSession();
+    setListening(false);
+  }, []);
 
-    const loop = Animated.loop(
+  const startPulse = useCallback(() => {
+    pulseLoopRef.current?.stop();
+    pulseAnim.setValue(0);
+    pulseLoopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1,
@@ -303,76 +433,180 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey })
         })
       ])
     );
+    pulseLoopRef.current.start();
+  }, [pulseAnim]);
 
+  const stopPulse = useCallback(() => {
+    pulseLoopRef.current?.stop();
+    pulseAnim.setValue(0);
+  }, [pulseAnim]);
+
+  const handleStudentAnswerRef = useRef(() => {});
+
+  const startVoiceForAnswer = useCallback(
+    async (expected) => {
+      if (!voiceAvailableRef.current) {
+        return;
+      }
+
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        if (!(await getIsSpeaking())) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+      await new Promise((resolve) => setTimeout(resolve, 450));
+
+      const granted = await ensureMicPermission();
+      if (!granted) {
+        setLiveCaption("Please allow microphone access so Teacher Maya can hear you.");
+        return;
+      }
+
+      stopVoiceSession();
+      setHeardText("");
+      voiceSessionRef.current = createVoiceAnswerSession({
+        choices: buildAnswerChoices(expected),
+        expected,
+        onTranscript: setHeardText,
+        onListeningChange: setListening,
+        onResult: (answer) => handleStudentAnswerRef.current(answer),
+        onError: (message) => {
+          setLiveCaption(message);
+          setListening(false);
+        }
+      });
+    },
+    [stopVoiceSession]
+  );
+
+  const handleStudentAnswer = useCallback(
+    (guess) => {
+      const expected = answerPromptRef.current?.expected;
+      if (expected == null) {
+        return;
+      }
+
+      stopVoiceSession();
+
+      if (Number(guess) !== Number(expected)) {
+        setLiveCaption(buildWrongFeedback(expected));
+        speakLessonFeedback(buildWrongFeedback(expected), {
+          onDone: () => {
+            setLiveCaption(buildAnswerPrompt(expected));
+            if (voiceAvailableRef.current) {
+              startVoiceForAnswer(expected);
+            }
+          }
+        });
+        return;
+      }
+
+      const continueStep = sequenceContinueRef.current;
+      setAnswerPrompt(null);
+      answerPromptRef.current = null;
+      setHeardText("");
+      setLiveCaption(buildCorrectFeedback(expected));
+      speakLessonFeedback(buildCorrectFeedback(expected), {
+        onDone: () => {
+          setSpeaking(true);
+          startPulse();
+          continueStep?.();
+        }
+      });
+    },
+    [stopVoiceSession, startVoiceForAnswer]
+  );
+
+  handleStudentAnswerRef.current = handleStudentAnswer;
+
+  const runLessonSequence = useCallback(() => {
     stopLessonSpeech();
+    stopVoiceSession();
+    setAnswerPrompt(null);
+    answerPromptRef.current = null;
+    sequenceContinueRef.current = null;
+
+    onSlideSpeechProgress?.(false);
+
+    const plan = buildSlideSpeechPlan(slide, lesson, slideIndex);
+    const syncReveal =
+      plan.mode === "sequence" &&
+      (slide.visual?.type === "dots" || slide.visual?.type === "match" || slide.visual?.type === "celebrate");
+
     setSpeaking(true);
     setLiveCaption(slide.body);
     setRevealedCount(syncReveal ? 0 : slide.visual?.count ?? 0);
-    loop.start();
+    startPulse();
 
     const handleStepStart = (step) => {
-      if (!active) {
-        return;
-      }
+      setAnswerPrompt(null);
+      answerPromptRef.current = null;
+      setHeardText("");
       setLiveCaption(step.text);
+      setSpeaking(true);
+      startPulse();
       if (typeof step.reveal === "number") {
         setRevealedCount(step.reveal);
+      }
+    };
+
+    const handleSlideSpeechDone = () => {
+      setSpeaking(false);
+      setAnswerPrompt(null);
+      answerPromptRef.current = null;
+      stopPulse();
+      stopVoiceSession();
+      onSlideSpeechProgress?.(true);
+    };
+
+    const handleWaitForAnswer = (step, continueFn) => {
+      sequenceContinueRef.current = continueFn;
+      const prompt = { expected: step.waitForAnswer };
+      answerPromptRef.current = prompt;
+      setAnswerPrompt(prompt);
+      setLiveCaption(buildAnswerPrompt(step.waitForAnswer));
+      setSpeaking(false);
+      stopPulse();
+      if (voiceAvailableRef.current) {
+        startVoiceForAnswer(step.waitForAnswer);
       }
     };
 
     if (plan.mode === "sequence") {
       speakLessonSequence(plan.steps, {
         onStepStart: handleStepStart,
-        onDone: () => {
-          if (active) {
-            setSpeaking(false);
-            loop.stop();
-            pulseAnim.setValue(0);
-          }
-        }
+        onWaitForAnswer: handleWaitForAnswer,
+        onDone: handleSlideSpeechDone
       });
     } else {
       speakLesson(plan.text, {
         onDone: () => {
-          if (active) {
-            setSpeaking(false);
-            loop.stop();
-            pulseAnim.setValue(0);
-          }
+          handleSlideSpeechDone();
         }
       });
     }
+  }, [lesson, slide, slideIndex, startPulse, stopPulse, stopVoiceSession, startVoiceForAnswer, onSlideSpeechProgress]);
 
+  useEffect(() => {
+    checkVoiceAnswerSupport().then((result) => {
+      voiceAvailableRef.current = result.available;
+      setVoiceAvailable(result.available);
+      setVoiceHint(result.reason || "");
+    });
+  }, []);
+
+  useEffect(() => {
+    runLessonSequence();
     return () => {
-      active = false;
       stopLessonSpeech();
-      loop.stop();
+      stopVoiceSession();
+      stopPulse();
     };
-  }, [lesson.id, slideIndex, slideKey]);
+  }, [lesson.id, slideIndex, slideKey, runLessonSequence, stopVoiceSession, stopPulse]);
 
   function replaySpeech() {
-    stopLessonSpeech();
-    setSpeaking(true);
-    setLiveCaption(slide.body);
-    setRevealedCount(usesRevealSync ? 0 : slide.visual?.count ?? 0);
-
-    const plan = buildSlideSpeechPlan(slide, lesson, slideIndex);
-
-    if (plan.mode === "sequence") {
-      speakLessonSequence(plan.steps, {
-        onStepStart: (step) => {
-          setLiveCaption(step.text);
-          if (typeof step.reveal === "number") {
-            setRevealedCount(step.reveal);
-          }
-        },
-        onDone: () => setSpeaking(false)
-      });
-    } else {
-      speakLesson(plan.text, {
-        onDone: () => setSpeaking(false)
-      });
-    }
+    runLessonSequence();
   }
 
   const mouthScale = pulseAnim.interpolate({
@@ -388,7 +622,13 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey })
         </Animated.View>
         <View style={styles.teacherCopy}>
           <Text style={styles.teacherName}>{TEACHER.name}</Text>
-          <Text style={styles.teacherStatus}>{speaking ? "🎤 Speaking…" : "👂 Listen closely!"}</Text>
+          <Text style={styles.teacherStatus}>
+            {answerPrompt
+              ? "👂 Your turn — say the number!"
+              : speaking
+                ? "🎤 Speaking…"
+                : "👂 Listen closely!"}
+          </Text>
           <Text style={styles.teacherSlideTitle}>{slide.title}</Text>
         </View>
         <Pressable onPress={replaySpeech} style={styles.replayButton}>
@@ -416,15 +656,30 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey })
       </View>
 
       <View style={styles.captionBox}>
-        <Text style={styles.captionLive}>{speaking ? "Teacher Maya says:" : "Remember:"}</Text>
+        <Text style={styles.captionLive}>
+          {answerPrompt ? "Teacher Maya asks:" : speaking ? "Teacher Maya says:" : "Remember:"}
+        </Text>
         <Text style={styles.captionText}>{liveCaption}</Text>
         <Text style={styles.captionTip}>💡 {slide.tip}</Text>
       </View>
+
+      {answerPrompt ? (
+        <LessonAnswerPanel
+          expected={answerPrompt.expected}
+          listening={listening}
+          voiceAvailable={voiceAvailable}
+          voiceHint={voiceHint}
+          heardText={heardText}
+          onAnswer={handleStudentAnswer}
+          onMicPress={() => startVoiceForAnswer(answerPrompt.expected)}
+        />
+      ) : null}
     </View>
   );
 }
 
 export function stopClassroomSpeech() {
+  stopVoiceAnswerSession();
   stopLessonSpeech();
 }
 
@@ -566,5 +821,57 @@ const styles = StyleSheet.create({
   captionBox: { padding: 14, borderRadius: 16, backgroundColor: "#F8FAFC", gap: 8 },
   captionLive: { color: "#6366F1", fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
   captionText: { color: "#1E3A5F", fontSize: 16, lineHeight: 24, fontWeight: "600" },
-  captionTip: { color: "#5B7A9A", fontSize: 14, lineHeight: 20, fontWeight: "700" }
+  captionTip: { color: "#5B7A9A", fontSize: 14, lineHeight: 20, fontWeight: "700" },
+  answerPanel: {
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: "#EEF2FF",
+    borderWidth: 2,
+    borderColor: "#C7D2FE",
+    gap: 10
+  },
+  answerPanelTitle: { color: "#312E81", fontSize: 17, fontWeight: "900" },
+  answerPanelPrompt: { color: "#4338CA", fontSize: 14, lineHeight: 20, fontWeight: "700" },
+  answerChoices: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10
+  },
+  answerChoice: {
+    minWidth: 52,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#A5B4FC",
+    alignItems: "center"
+  },
+  answerChoiceHint: {
+    borderColor: "#6366F1",
+    backgroundColor: "#E0E7FF"
+  },
+  answerChoicePressed: { opacity: 0.88 },
+  answerChoiceText: { color: "#312E81", fontSize: 20, fontWeight: "900" },
+  answerMicButton: {
+    marginTop: 4,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#6366F1",
+    alignItems: "center"
+  },
+  answerMicButtonActive: { backgroundColor: "#DC2626" },
+  answerMicText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
+  answerTapHint: { color: "#64748B", fontSize: 12, fontWeight: "700", textAlign: "center", lineHeight: 18 },
+  answerExpoHint: {
+    color: "#92400E",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18,
+    backgroundColor: "#FEF3C7",
+    padding: 10,
+    borderRadius: 12
+  },
+  answerHeardText: { color: "#1D4ED8", fontSize: 13, fontWeight: "700", textAlign: "center" }
 });

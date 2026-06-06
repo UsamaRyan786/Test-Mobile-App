@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Number Match Garden",
+    "name": "Math Talk",
     "slug": "number-match-garden",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
@@ -15,8 +15,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Math Garden uses the microphone so you can speak your answers.",
-        "NSSpeechRecognitionUsageDescription": "Math Garden uses speech recognition to understand your spoken math answers."
+        "NSMicrophoneUsageDescription": "Math Talk uses the microphone so you can speak your answers.",
+        "NSSpeechRecognitionUsageDescription": "Math Talk uses speech recognition to understand your spoken math answers."
       }
     },
     "android": {
@@ -32,12 +32,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Allow Math Garden to use the microphone so you can speak your answers.",
-          "speechRecognitionPermission": "Allow Math Garden to recognize your spoken math answers.",
-          "androidSpeechServicePackages": [
-            "com.google.android.googlequicksearchbox",
-            "com.google.android.tts"
-          ]
+          "microphonePermission": "Allow Math Talk to use the microphone so you can speak your answers in class and games.",
+          "speechRecognitionPermission": "Allow Math Talk to hear your spoken numbers during lessons and games."
         }
       ]
     ]
