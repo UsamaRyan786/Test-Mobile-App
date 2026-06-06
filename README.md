@@ -6,17 +6,33 @@ Also published in Expo as **Number Match Garden** (`number-match-garden`).
 
 ## Features
 
-- **12 math mini-games** covering counting, addition, subtraction, multiplication, comparison, patterns, and number sense
+- **71 math mini-games** covering counting, addition, subtraction, multiplication, division, mixed arithmetic, patterns, and challenges
 - **12 questions per game** with 4 multiple-choice answers each
 - **Star ratings** (0–3 stars) based on final score
 - **High score tracking** saved locally with AsyncStorage
-- **Garden coins & badges** — earn coins and unlock **162 achievement badges**
+- **Garden coins & badges** — earn coins and unlock **457 achievement badges**
 - **Home screen summary** — coins, badge progress, top score, and per-game best scores on each card
+- **Grouped game menu** — 8 categories (Counting, Addition, Subtraction, Multiplication, Division, Patterns, Mixed, Challenge)
 - **High Scores dashboard** — stats, sorted leaderboard, and full badge collection
 - **Animated UI** with gradients, bouncing dots, button feedback, and progress bar
 - **Portrait-only**, light theme, optimized for phones via **Expo Go**
 
-## Games
+## Games (71 total)
+
+Games are defined in `games.js` and grouped on the home screen by category:
+
+| Category | Games | Examples |
+|----------|-------|----------|
+| 🔢 **Counting & Compare** | 8 | Number Match Garden, Compare Castle, Smaller Swamp, Tiny/Big Dot Garden, Odd Owl, Even Elephant |
+| ➕ **Addition** | 13 | Addition Adventure, Make Ten/Five/Twenty, Tiny Totals, Triple Add Trail, One More Mountain |
+| ➖ **Subtraction** | 5 | Subtraction Safari, Tiny Takeaway, Ten Takeaway, Same Number Subtract |
+| ✖️ **Multiplication** | 17 | Multiplication Meadow, Times Table Tower (×2–×9 trails), Double/Triple Trouble, Square Castle |
+| ➗ **Division** | 5 | Division Desert, Half Moon Math, Divide by One, Share Six Snacks |
+| 🔮 **Patterns** | 11 | Number Ninja, Countdown Cave, Before & After, Step by 3/5, Skip Count 5s/10s |
+| 🎲 **Mixed** | 8 | Arithmetic Arena, Missing Mystery (+/−/×/÷), Plus Minus Mix, Times Divide Dash |
+| 🏆 **Challenge** | 4 | Math Marathon, Speedy Sums, Brain Trainer, Pattern Pro |
+
+### Core games (first 15)
 
 | Game | ID | Skill |
 |------|----|-------|
@@ -24,14 +40,28 @@ Also published in Expo as **Number Match Garden** (`number-match-garden`).
 | Addition Adventure 🚀 | `addition` | Add two numbers |
 | Subtraction Safari 🦁 | `subtraction` | Subtract small numbers |
 | Multiplication Meadow 🌸 | `multiplication` | Multiply numbers (2–5 times tables) |
+| Times Table Tower 🗼 | `timesTables` | Harder multiplication (2–9 times tables) |
+| Division Desert 🏜️ | `division` | Divide numbers (clean answers, no remainders) |
+| Arithmetic Arena ⚔️ | `mixed` | Random mix of **+**, **−**, **×**, and **÷** each round |
 | Compare Castle 🏰 | `compare` | Pick the **bigger** number |
 | Number Ninja 🥷 | `sequence` | Complete a counting pattern |
 | Make Ten Magic ✨ | `makeTen` | Find the missing number to make 10 |
-| Double Trouble 🪞 | `doubles` | Double a number |
+| Double Trouble 🪞 | `doubles` | Double a number (×2) |
 | Smaller Swamp 🐸 | `smaller` | Pick the **smaller** number |
-| Missing Mystery 🔍 | `missingAdd` | Find the hidden number in a sum |
+| Missing Mystery 🔍 | `missingAdd` | Find the hidden number in **+**, **−**, **×**, or **÷** equations |
 | Countdown Cave 🦇 | `countBack` | Count backwards |
 | Before & After 🎢 | `beforeAfter` | What number comes before or after |
+
+Plus **56 more** variants (times-table trails, tiny/big difficulty tiers, missing-number specials, parity, halves, squares, and challenge modes). See `games.js` for the full list.
+
+### Arithmetic coverage
+
+| Operation | Dedicated games | Also appears in |
+|-----------|-----------------|-----------------|
+| **Addition (+)** | 13 addition games + Make Ten/Five/Twenty | Mixed, Missing Mystery, challenge modes |
+| **Subtraction (−)** | 5 subtraction games | Mixed, Missing Mystery |
+| **Multiplication (×)** | 17 multiplication games (incl. ×2–×9 trails) | Mixed, Missing Mystery |
+| **Division (÷)** | 5 division games | Mixed, Missing Mystery |
 
 ## Gameplay
 
@@ -89,9 +119,9 @@ Earned at the end of each completed game:
 
 Coins are shown on the **home screen** and **dashboard**. The **finish screen** shows coins earned and any new badges.
 
-### Badges (162 total)
+### Badges (457 total)
 
-Badges are defined in `badges.js` and grouped by category on the dashboard. Locked badges appear grayed out until unlocked. Each badge also grants bonus coins.
+Badges are defined in `badges.js` (built from the game list) and grouped by category on the dashboard. Locked badges appear grayed out until unlocked. Each badge also grants bonus coins.
 
 | Category | Examples |
 |----------|----------|
@@ -103,7 +133,7 @@ Badges are defined in `badges.js` and grouped by category on the dashboard. Lock
 | 🏆 **Records** | Break 1, 3, 5, 10, 30+ high scores (lifetime) |
 | 🧠 **Accuracy** | 30, 60, 120, 500, 1000, 2000+ lifetime correct answers |
 | ⚡ **Session** | Score 6+, 8+, 10+, or 11+ in a single game |
-| 🎮 **Game Badges** | Per game: play 5×, play 10×, perfect 12/12, earn 3 stars |
+| 🎮 **Game Badges** | Per game: play 5×, play 10×, perfect 12/12, earn 3 stars (×71 games) |
 | 🥇 **Skills** | Per game: score 10+ in one run (Ace badges) |
 | 🎖️ **Legend** | Unlock 6, 25, 50, 75, or 100 total badges |
 
@@ -116,7 +146,7 @@ Badges are defined in `badges.js` and grouped by category on the dashboard. Lock
 | 🌟 Super Star | Earn 3 stars in any game | 25 |
 | 💯 Perfect Run | Get 12/12 in any game | 50 |
 | 🗺️ Game Explorer | Try 4 different games | 20 |
-| 👑 Math Master | Try all 12 games | 60 |
+| 👑 Math Master | Try all 71 games | 60 |
 | 🪙 Coin Collector | Collect 100 garden coins | 20 |
 | 🔥 On Fire! | Complete 20 games total | 30 |
 | 🏆 Record Breaker | Set a new high score | 15 |
@@ -130,9 +160,9 @@ The finish screen shows up to 3 new badges at a time (with a count if more were 
 
 | Screen | Purpose |
 |--------|---------|
-| **Menu** | Pick a game; view coins, badges, and high score summary |
+| **Menu** | Pick a game by category; view coins, badges, and high score summary |
 | **Game** | Play 12 rounds; see score, progress, and personal best |
-| **Dashboard** | High scores, coins, and **162 badges** by category |
+| **Dashboard** | High scores, coins, and **457 badges** by category |
 
 ## Tech stack
 
@@ -202,8 +232,9 @@ npx expo start --web
 
 ```
 .
-├── App.js              # Main app: games, UI, scores, rewards
-├── badges.js           # 162 badge definitions and unlock logic
+├── App.js              # Main app: UI, scores, rewards, screens
+├── games.js            # 71 games, round generators, menu categories
+├── badges.js           # Badge definitions and unlock logic (457 badges)
 ├── app.json            # Expo config (name, slug, SDK, splash)
 ├── package.json        # Dependencies and scripts
 ├── babel.config.js     # Babel / Metro preset (expo)
@@ -211,14 +242,15 @@ npx expo start --web
 └── .expo/              # Local Expo dev cache (generated)
 ```
 
-All game logic, screens, and styles live in **`App.js`**. Badge definitions and evaluation live in **`badges.js`**.
+**`App.js`** handles screens, styling, high scores, and rewards. **`games.js`** defines all games and generates each round. **`badges.js`** builds and evaluates badges from the game list.
 
 | Area | Details |
 |------|---------|
-| **Screens** | Menu, game play, high scores dashboard |
-| **Constants** | `MAX_ROUNDS = 12`, `GAMES`, theme colors |
+| **Screens** | Menu (grouped by category), game play, high scores dashboard |
+| **Constants** | `MAX_ROUNDS = 12`, `GAMES` from `games.js`, theme colors |
 | **Storage keys** | `@mathGarden/highScores`, `@mathGarden/rewards` |
 | **Functions** | `loadHighScores`, `saveHighScore`, `loadRewards`, `applyRewards` |
+| **Games** | `createRound`, `getGamesByCategory`, UI helpers in `games.js` |
 | **Badges** | `buildBadges`, `evaluateBadges`, `updateRewardStats` in `badges.js` |
 
 ## Configuration

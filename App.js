@@ -18,12 +18,22 @@ import {
   getBadgesByCategory,
   updateRewardStats
 } from "./badges";
+import {
+  GAMES,
+  createRound,
+  getGamesByCategory,
+  isDotsGame,
+  showEqualsHint,
+  usesWideQuestionText,
+  usesSequenceQuestionText,
+  getInstruction,
+  getTargetLabel,
+  getPrompt
+} from "./games";
 
 const MAX_ROUNDS = 12;
 const HIGH_SCORES_KEY = "@mathGarden/highScores";
 const REWARDS_KEY = "@mathGarden/rewards";
-const MIN_NUMBER = 1;
-const MAX_NUMBER = 10;
 
 const THEME = {
   bg: ["#C9EFFF", "#E8F5FF", "#FFF4E6"],
@@ -38,277 +48,6 @@ const THEME = {
 
 const DOT_COLORS = ["#FBBF24", "#4ADE80", "#FF6B9D", "#60A5FA", "#A78BFA", "#FB923C"];
 
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function shuffle(items) {
-  return [...items].sort(() => Math.random() - 0.5);
-}
-
-function makeChoices(value, min, max) {
-  const choices = new Set([value]);
-
-  while (choices.size < 4) {
-    const next = Math.min(max, Math.max(min, value + randomInt(-3, 3)));
-    choices.add(next);
-  }
-
-  return shuffle([...choices]);
-}
-
-function makeChoicesFromRange(value, min, max) {
-  const choices = new Set([value]);
-
-  while (choices.size < 4) {
-    const next = randomInt(min, max);
-    choices.add(next);
-  }
-
-  return shuffle([...choices]);
-}
-
-function createRound(gameId) {
-  if (gameId === "addition") {
-    const a = randomInt(1, 8);
-    const b = randomInt(1, 8);
-    const target = a + b;
-    return {
-      label: `${a} + ${b}`,
-      target,
-      choices: makeChoicesFromRange(target, 2, 16)
-    };
-  }
-
-  if (gameId === "subtraction") {
-    const a = randomInt(5, 12);
-    const b = randomInt(1, 4);
-    const target = a - b;
-    return {
-      label: `${a} - ${b}`,
-      target,
-      choices: makeChoicesFromRange(target, 1, 12)
-    };
-  }
-
-  if (gameId === "multiplication") {
-    const a = randomInt(2, 5);
-    const b = randomInt(2, 5);
-    const target = a * b;
-    return {
-      label: `${a} × ${b}`,
-      target,
-      choices: makeChoicesFromRange(target, 4, 25)
-    };
-  }
-
-  if (gameId === "compare") {
-    const a = randomInt(1, 12);
-    let b = randomInt(1, 12);
-    while (b === a) {
-      b = randomInt(1, 12);
-    }
-    const target = Math.max(a, b);
-    return {
-      label: `${a}  vs  ${b}`,
-      target,
-      choices: makeChoicesFromRange(target, 1, 12)
-    };
-  }
-
-  if (gameId === "sequence") {
-    const start = randomInt(1, 6);
-    const step = randomInt(1, 2);
-    const seq = [start, start + step, start + step * 2];
-    const target = start + step * 3;
-    return {
-      label: `${seq.join(", ")}, ?`,
-      target,
-      choices: makeChoicesFromRange(target, 1, 16)
-    };
-  }
-
-  if (gameId === "makeTen") {
-    const a = randomInt(1, 9);
-    const target = 10 - a;
-    return {
-      label: `${a} + ? = 10`,
-      target,
-      choices: makeChoicesFromRange(target, 1, 9)
-    };
-  }
-
-  if (gameId === "doubles") {
-    const n = randomInt(1, 8);
-    const target = n * 2;
-    return {
-      label: `Double ${n}`,
-      target,
-      choices: makeChoicesFromRange(target, 2, 16)
-    };
-  }
-
-  if (gameId === "smaller") {
-    const a = randomInt(1, 12);
-    let b = randomInt(1, 12);
-    while (b === a) {
-      b = randomInt(1, 12);
-    }
-    const target = Math.min(a, b);
-    return {
-      label: `${a}  vs  ${b}`,
-      target,
-      choices: makeChoicesFromRange(target, 1, 12)
-    };
-  }
-
-  if (gameId === "missingAdd") {
-    const a = randomInt(1, 8);
-    const b = randomInt(1, 8);
-    const sum = a + b;
-    const hideFirst = randomInt(0, 1) === 1;
-    const target = hideFirst ? a : b;
-    const shown = hideFirst ? b : a;
-    return {
-      label: `? + ${shown} = ${sum}`,
-      target,
-      choices: makeChoicesFromRange(target, 1, 12)
-    };
-  }
-
-  if (gameId === "countBack") {
-    const start = randomInt(6, 12);
-    const seq = [start, start - 1, start - 2];
-    const target = start - 3;
-    return {
-      label: `${seq.join(", ")}, ?`,
-      target,
-      choices: makeChoicesFromRange(target, 1, 12)
-    };
-  }
-
-  if (gameId === "beforeAfter") {
-    const n = randomInt(2, 9);
-    if (randomInt(0, 1) === 1) {
-      return {
-        label: `After ${n} comes ?`,
-        target: n + 1,
-        choices: makeChoicesFromRange(n + 1, 1, 10)
-      };
-    }
-    return {
-      label: `Before ${n} comes ?`,
-      target: n - 1,
-      choices: makeChoicesFromRange(n - 1, 1, 10)
-    };
-  }
-
-  const target = randomInt(MIN_NUMBER, MAX_NUMBER);
-  return {
-    label: `${target} dots`,
-    target,
-    choices: makeChoices(target, MIN_NUMBER, MAX_NUMBER)
-  };
-}
-
-const GAMES = [
-  {
-    id: "match",
-    title: "Number Match Garden",
-    description: "Count the colorful dots and pick the right number!",
-    emoji: "🌻",
-    gradient: ["#86EFAC", "#22C55E"],
-    accent: "#15803D"
-  },
-  {
-    id: "addition",
-    title: "Addition Adventure",
-    description: "Add numbers together and become a math hero!",
-    emoji: "🚀",
-    gradient: ["#93C5FD", "#3B82F6"],
-    accent: "#1D4ED8"
-  },
-  {
-    id: "subtraction",
-    title: "Subtraction Safari",
-    description: "Take away numbers on a wild math safari!",
-    emoji: "🦁",
-    gradient: ["#FDBA74", "#F97316"],
-    accent: "#C2410C"
-  },
-  {
-    id: "multiplication",
-    title: "Multiplication Meadow",
-    description: "Multiply numbers and watch them bloom!",
-    emoji: "🌸",
-    gradient: ["#F9A8D4", "#EC4899"],
-    accent: "#BE185D"
-  },
-  {
-    id: "compare",
-    title: "Compare Castle",
-    description: "Find the bigger number between two friends!",
-    emoji: "🏰",
-    gradient: ["#C4B5FD", "#8B5CF6"],
-    accent: "#6D28D9"
-  },
-  {
-    id: "sequence",
-    title: "Number Ninja",
-    description: "Spot the pattern and find what comes next!",
-    emoji: "🥷",
-    gradient: ["#5EEAD4", "#14B8A6"],
-    accent: "#0F766E"
-  },
-  {
-    id: "makeTen",
-    title: "Make Ten Magic",
-    description: "Find the missing number to make ten!",
-    emoji: "✨",
-    gradient: ["#FDE047", "#EAB308"],
-    accent: "#A16207"
-  },
-  {
-    id: "doubles",
-    title: "Double Trouble",
-    description: "Double a number and find the answer!",
-    emoji: "🪞",
-    gradient: ["#FDA4AF", "#F43F5E"],
-    accent: "#BE123C"
-  },
-  {
-    id: "smaller",
-    title: "Smaller Swamp",
-    description: "Find the smaller number between two!",
-    emoji: "🐸",
-    gradient: ["#86EFAC", "#059669"],
-    accent: "#047857"
-  },
-  {
-    id: "missingAdd",
-    title: "Missing Mystery",
-    description: "Find the hidden number in the sum!",
-    emoji: "🔍",
-    gradient: ["#A5B4FC", "#6366F1"],
-    accent: "#4338CA"
-  },
-  {
-    id: "countBack",
-    title: "Countdown Cave",
-    description: "Count backwards and find what comes next!",
-    emoji: "🦇",
-    gradient: ["#CBD5E1", "#64748B"],
-    accent: "#475569"
-  },
-  {
-    id: "beforeAfter",
-    title: "Before & After",
-    description: "What number comes before or after?",
-    emoji: "🎢",
-    gradient: ["#F0ABFC", "#D946EF"],
-    accent: "#A21CAF"
-  }
-];
 
 const BADGES = buildBadges(GAMES, MAX_ROUNDS);
 
@@ -386,62 +125,6 @@ async function applyRewards(gameId, score, beatRecord, highScores) {
 
   await saveRewards(rewards);
   return { rewards, coinsEarned, newBadges };
-}
-
-function isDotsGame(gameId) {
-  return gameId === "match";
-}
-
-function showEqualsHint(gameId) {
-  return !["compare", "smaller", "sequence", "countBack", "beforeAfter", "missingAdd"].includes(gameId);
-}
-
-function usesWideQuestionText(gameId) {
-  return ["compare", "smaller"].includes(gameId);
-}
-
-function usesSequenceQuestionText(gameId) {
-  return ["sequence", "countBack", "beforeAfter"].includes(gameId);
-}
-
-function getInstruction(gameId) {
-  if (gameId === "match") return "Tap the matching number!";
-  if (gameId === "compare") return "Pick the bigger number!";
-  if (gameId === "smaller") return "Pick the smaller number!";
-  if (gameId === "sequence") return "What number comes next?";
-  if (gameId === "countBack") return "Count backwards — what's next?";
-  if (gameId === "beforeAfter") return "Pick the right number!";
-  if (gameId === "makeTen") return "Find the missing number!";
-  if (gameId === "missingAdd") return "Find the hidden number!";
-  if (gameId === "doubles") return "What is the double?";
-  return "Pick the correct answer!";
-}
-
-function getTargetLabel(gameId) {
-  if (gameId === "match") return "🔢 Count these dots";
-  if (gameId === "compare") return "⚖️ Which is bigger?";
-  if (gameId === "smaller") return "🐸 Which is smaller?";
-  if (gameId === "sequence") return "🔮 Complete the pattern";
-  if (gameId === "countBack") return "⏪ Count backwards";
-  if (gameId === "beforeAfter") return "🎢 Before or after?";
-  if (gameId === "makeTen") return "🪄 Make ten!";
-  if (gameId === "missingAdd") return "🔍 Find the missing piece";
-  if (gameId === "doubles") return "🪞 Double it!";
-  return "🧮 Solve this";
-}
-
-function getPrompt(gameId, finished) {
-  if (finished) return "🌟 Want to play again?";
-  if (gameId === "match") return "Which number matches?";
-  if (gameId === "compare") return "Tap the bigger number!";
-  if (gameId === "smaller") return "Tap the smaller number!";
-  if (gameId === "sequence") return "What comes next in the pattern?";
-  if (gameId === "countBack") return "What number comes next?";
-  if (gameId === "beforeAfter") return "Choose the correct number!";
-  if (gameId === "makeTen") return "What number makes ten?";
-  if (gameId === "missingAdd") return "What number is missing?";
-  if (gameId === "doubles") return "What's the double?";
-  return "Choose the correct answer!";
 }
 
 function getDashboardStats(highScores) {
@@ -1147,7 +830,7 @@ export default function App() {
             <Text style={styles.eyebrow}>✦ Pick Your Adventure ✦</Text>
             <Animated.Text style={[styles.title, titleStyle]}>Which game shall we play?</Animated.Text>
             <Text style={styles.subtitle}>
-              12 fun math games — count, add, subtract, multiply, and climb the high score board!
+              {GAMES.length} fun math games — count, add, subtract, multiply, divide, and climb the high score board!
             </Text>
           </View>
 
@@ -1172,21 +855,27 @@ export default function App() {
             )}
           </LinearGradient>
 
-          <View style={styles.gameList}>
-            {GAMES.map((game, index) => {
-              const record = highScores[game.id] || { best: 0, plays: 0 };
-              return (
-                <MenuGameCard
-                  key={game.id}
-                  game={game}
-                  index={index}
-                  bestScore={record.best}
-                  hasPlayed={record.plays > 0}
-                  onPress={() => selectGame(game)}
-                />
-              );
-            })}
-          </View>
+          {getGamesByCategory().map((section) => (
+            <View key={section.id} style={styles.gameCategorySection}>
+              <Text style={styles.gameCategoryTitle}>{section.label}</Text>
+              <View style={styles.gameCategoryList}>
+                {section.games.map((game) => {
+                  const record = highScores[game.id] || { best: 0, plays: 0 };
+                  const index = GAMES.findIndex((item) => item.id === game.id);
+                  return (
+                    <MenuGameCard
+                      key={game.id}
+                      game={game}
+                      index={index}
+                      bestScore={record.best}
+                      hasPlayed={record.plays > 0}
+                      onPress={() => selectGame(game)}
+                    />
+                  );
+                })}
+              </View>
+            </View>
+          ))}
         </ScrollView>
       </ScreenShell>
     );
@@ -1593,8 +1282,16 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: "500"
   },
-  gameList: {
+  gameCategorySection: {
     marginTop: 20,
+    gap: 12
+  },
+  gameCategoryTitle: {
+    color: THEME.text,
+    fontSize: 18,
+    fontWeight: "800"
+  },
+  gameCategoryList: {
     gap: 16
   },
   gameCard: {

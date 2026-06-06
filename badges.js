@@ -170,7 +170,7 @@ export function buildBadges(games, maxRounds) {
       "math_master",
       "👑",
       "Math Master",
-      "Try all 12 games",
+      `Try all ${games.length} games`,
       60,
       "starter",
       (ctx) => ctx.gamesPlayed >= games.length
