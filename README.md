@@ -57,9 +57,17 @@ Every game has **10 levels** in two tiers:
 - Passing a level unlocks the next level in that game.
 - Progress is saved locally under `@mathGarden/progress`.
 
+### Speak your answer (voice input)
+
+During games, students can **tap the microphone** and **say the answer out loud** (e.g. “five”, “12”, “three”). The app listens and picks the matching choice. Tap buttons still work as a backup.
+
+- Uses `expo-speech-recognition` (microphone + speech recognition permissions)
+- Works best in a **development build** (`npx expo run:android` / `run:ios`); in plain Expo Go, tap-to-answer still works if voice is unavailable
+- Supports spoken number words (one–twenty) and digits
+
 ## Features
 
-- **Math Classes** — Teacher Maya speaks lessons with whiteboard animations (`expo-speech`)
+- **Speak your answer** — tap 🎤 in games and say the number (speech recognition via `expo-speech-recognition`)
 - **71 math mini-games** covering counting, addition, subtraction, multiplication, division, mixed arithmetic, patterns, and challenges
 - **12 questions per game** with 4 multiple-choice answers each
 - **Star ratings** (0–3 stars) based on final score
@@ -227,6 +235,7 @@ The finish screen shows up to 3 new badges at a time (with a count if more were 
 | React Native 0.81 | Mobile components |
 | `expo-linear-gradient` | Gradient backgrounds and cards |
 | `expo-speech` | Spoken math classes (Teacher Maya) |
+| `expo-speech-recognition` | Students speak answers in games |
 | `@react-native-async-storage/async-storage` | High scores, coins, and badges |
 
 ## Prerequisites
@@ -292,6 +301,8 @@ npx expo start --web
 ├── lessons.js          # Math Classes content and lesson progress helpers
 ├── LessonClassroom.js  # Teacher + whiteboard UI with spoken lessons
 ├── lessonSpeech.js     # Text-to-speech narration helpers
+├── voiceAnswer.js      # Speech-to-text answer parsing for games
+├── VoiceAnswerPanel.js # Microphone UI in game screen
 ├── progression.js      # Learning path, level unlocks, difficulty scaling
 ├── badges.js           # Badge definitions and unlock logic (457 badges)
 ├── app.json            # Expo config (name, slug, SDK, splash)
@@ -312,6 +323,7 @@ npx expo start --web
 | **Games** | `createRound`, `getGamesByCategory`, UI helpers in `games.js` |
 | **Progression** | `getScaledConfig`, `recordLevelResult`, unlock checks in `progression.js` |
 | **Classes** | `LESSONS`, slide content, `completeLesson` in `lessons.js` |
+| **Voice answers** | `VoiceAnswerPanel`, `parseSpokenAnswer` in `voiceAnswer.js` |
 | **Badges** | `buildBadges`, `evaluateBadges`, `updateRewardStats` in `badges.js` |
 
 ## Configuration

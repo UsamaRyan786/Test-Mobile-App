@@ -13,13 +13,33 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Math Garden uses the microphone so you can speak your answers.",
+        "NSSpeechRecognitionUsageDescription": "Math Garden uses speech recognition to understand your spoken math answers."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#e9f7ee"
       },
-      "package": "com.anonymous.numbermatchgarden"
-    }
+      "package": "com.anonymous.numbermatchgarden",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Math Garden to use the microphone so you can speak your answers.",
+          "speechRecognitionPermission": "Allow Math Garden to recognize your spoken math answers.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts"
+          ]
+        }
+      ]
+    ]
   }
 }

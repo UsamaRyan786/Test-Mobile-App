@@ -54,6 +54,7 @@ import {
 } from "./progression";
 import LessonClassroom, { stopClassroomSpeech } from "./LessonClassroom";
 import { buildLessonOutro, speakLesson, stopLessonSpeech } from "./lessonSpeech";
+import VoiceAnswerPanel, { stopGameVoiceInput } from "./VoiceAnswerPanel";
 import {
   LESSONS,
   isLessonComplete,
@@ -1058,6 +1059,8 @@ export default function App() {
       clearTimeout(feedbackTimer.current);
     }
 
+    stopGameVoiceInput();
+
     const game = getGameMeta(gameId);
     const config = getScaledConfig(game.config, game.roundType, tier, level);
 
@@ -1096,6 +1099,7 @@ export default function App() {
   function backToMenu() {
     stopClassroomSpeech();
     stopLessonSpeech();
+    stopGameVoiceInput();
     setScreen("menu");
   }
 
@@ -1221,6 +1225,8 @@ export default function App() {
     if (selected !== null || finished) {
       return;
     }
+
+    stopGameVoiceInput();
 
     const isCorrect = number === roundData.target;
     const nextScore = isCorrect ? score + 1 : score;
@@ -1650,7 +1656,14 @@ export default function App() {
                 </Pressable>
               </View>
             ) : (
-              <View style={styles.choices}>
+              <>
+                <VoiceAnswerPanel
+                  choices={roundData.choices}
+                  disabled={selected !== null}
+                  roundKey={`${roundKey}-${round}`}
+                  onAnswer={chooseNumber}
+                />
+                <View style={styles.choices}>
                 {roundData.choices.map((choice) => {
                   const isCorrectChoice = selected !== null && choice === roundData.target;
                   const isWrongChoice = selected === choice && choice !== roundData.target;
@@ -1666,7 +1679,8 @@ export default function App() {
                     />
                   );
                 })}
-              </View>
+                </View>
+              </>
             )}
 
             <Animated.View
