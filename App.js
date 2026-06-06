@@ -59,7 +59,9 @@ import {
   isLessonUnlocked,
   getLessonUnlockHint,
   getLessonProgress,
-  recordLessonSlide,
+  getResumeSlideIndex,
+  saveLessonCheckpoint,
+  markLessonStepComplete,
   completeLesson,
   getCompletedLessonCount
 } from "./lessons";
@@ -829,6 +831,7 @@ function LessonVisual({ visual }) {
 function ClassCard({ lesson, progress, index, onPress }) {
   const unlocked = isLessonUnlocked(progress, lesson.id);
   const completed = isLessonComplete(progress, lesson.id);
+  const resumeSlide = getResumeSlideIndex(progress, lesson.id);
   const hint = getLessonUnlockHint(lesson.id);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -879,7 +882,13 @@ function ClassCard({ lesson, progress, index, onPress }) {
             <Text style={styles.classCardSubtitle}>{lesson.subtitle}</Text>
             <Text style={styles.classCardMeta}>
               🎧 {lesson.slides.length} steps ·{" "}
-              {completed ? "✅ Tap to replay →" : unlocked ? "Tap to listen →" : "Locked"}
+              {completed
+                ? "✅ Tap to replay →"
+                : unlocked
+                  ? resumeSlide > 0
+                    ? `Continue step ${resumeSlide + 1} →`
+                    : "Tap to start →"
+                  : "Locked"}
             </Text>
           </View>
         </LinearGradient>
@@ -1115,10 +1124,35 @@ export default function App() {
   }
 
   function backToMenu() {
+    persistLessonCheckpoint();
     stopClassroomSpeech();
     stopLessonSpeech();
     stopGameVoiceInput();
     setScreen("menu");
+  }
+
+  function persistLessonCheckpoint() {
+    if (screen !== "lesson" || lessonReplay || lessonFinished || !selectedLesson) {
+      return;
+    }
+    if (isLessonComplete(progress, selectedLesson.id)) {
+      return;
+    }
+
+    const savedSlide = getLessonProgress(progress, selectedLesson.id).slide ?? 0;
+    if (savedSlide === lessonSlide) {
+      return;
+    }
+
+    const updated = saveLessonCheckpoint(progress, selectedLesson.id, lessonSlide);
+    setProgress(updated);
+    saveProgressData(updated);
+  }
+
+  function leaveLessonForClasses() {
+    persistLessonCheckpoint();
+    stopClassroomSpeech();
+    setScreen("classes");
   }
 
   function openDashboard() {
@@ -1169,7 +1203,7 @@ export default function App() {
     setSelectedLesson(lesson);
     const completed = isLessonComplete(progress, lesson.id);
     setLessonReplay(completed);
-    setLessonSlide(completed ? 0 : getLessonProgress(progress, lesson.id).slide || 0);
+    setLessonSlide(completed ? 0 : getResumeSlideIndex(progress, lesson.id));
     setLessonSlideKey((key) => key + 1);
     setLessonFinished(false);
     setSlideSpeechComplete(false);
@@ -1198,7 +1232,7 @@ export default function App() {
 
     const nextSlide = lessonSlide + 1;
     if (!replaying) {
-      const updated = recordLessonSlide(progress, lesson.id, nextSlide);
+      const updated = markLessonStepComplete(progress, lesson.id, lessonSlide);
       setProgress(updated);
       saveProgressData(updated);
     }
@@ -1850,10 +1884,7 @@ export default function App() {
         <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
           <View style={styles.gameHeader}>
             <Pressable
-              onPress={() => {
-                stopClassroomSpeech();
-                setScreen("classes");
-              }}
+              onPress={leaveLessonForClasses}
               style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]}
             >
               <Text style={styles.backButtonText}>← Classes</Text>

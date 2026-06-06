@@ -280,6 +280,39 @@ export function getLessonProgress(progress, lessonId) {
   return progress?.lessons?.[lessonId] || { completed: false, slide: 0 };
 }
 
+export function getResumeSlideIndex(progress, lessonId) {
+  if (isLessonComplete(progress, lessonId)) {
+    return 0;
+  }
+
+  const lesson = getLesson(lessonId);
+  const saved = getLessonProgress(progress, lessonId).slide ?? 0;
+  return Math.max(0, Math.min(saved, lesson.slides.length - 1));
+}
+
+export function saveLessonCheckpoint(progress, lessonId, slideIndex) {
+  if (isLessonComplete(progress, lessonId)) {
+    return progress;
+  }
+
+  const lesson = getLesson(lessonId);
+  const clamped = Math.max(0, Math.min(slideIndex, lesson.slides.length - 1));
+  const next = {
+    ...progress,
+    lessons: { ...progress.lessons }
+  };
+  const current = getLessonProgress(next, lessonId);
+  next.lessons[lessonId] = {
+    ...current,
+    slide: clamped
+  };
+  return next;
+}
+
+export function markLessonStepComplete(progress, lessonId, completedSlideIndex) {
+  return saveLessonCheckpoint(progress, lessonId, completedSlideIndex + 1);
+}
+
 export function isLessonComplete(progress, lessonId) {
   return Boolean(getLessonProgress(progress, lessonId).completed);
 }
