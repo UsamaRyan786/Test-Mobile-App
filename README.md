@@ -6,7 +6,7 @@ Expo slug: **`number-match-garden`** (legacy package name).
 
 ## Math Classes (listen, answer, and watch)
 
-Before jumping into games, kids join **Teacher Maya** for short spoken lessons with an animated **whiteboard**. Finish a class to unlock **only the games that class teaches** — not the whole category tree at once.
+Before jumping into games, kids join **Teacher Maya** for short spoken lessons with an animated **whiteboard**. A simple **teacher portrait** (👩‍🏫) appears beside the board while Maya teaches. Finish a class to unlock **only the games that class teaches** — not the whole category tree at once.
 
 | # | Class | What it teaches | Unlocks |
 |---|-------|-----------------|---------|
@@ -27,14 +27,19 @@ Before jumping into games, kids join **Teacher Maya** for short spoken lessons w
 
 **Class order:** Counting → Compare → Even & Odd → Addition → Subtraction → Multiplication → Division → Patterns → Mixed → BODMAS Intro → Brackets → ×÷ First → Full BODMAS → Challenge.
 
-Class progress is saved in `@mathGarden/progress` under `lessons`.
+Class progress is saved in `@mathGarden/progress` under `lessons` (current step index and completion flag).
 
 ### Classroom experience
 
 - **Teacher Maya** speaks each slide aloud (`expo-speech`) while the **whiteboard** draws circles, groups, and equations step by step
-- **Interactive counting:** Teacher Maya can pause and ask the child to say or tap the answer; correct answers get praise, wrong answers get a gentle “try again” without stopping the lesson
-- **Next Step** stays disabled until Teacher Maya finishes the current slide narration
-- Tap **🔊 Again** to replay the teacher; captions show the same words on screen
+- **Simple teacher portrait** — a round 👩‍🏫 image with Maya’s name plate (no custom avatar figure); gentle pulse while she is speaking
+- **Interactive counting:** Maya pauses and asks the child to say or tap the answer; correct answers get praise, wrong answers get a gentle “try again” without stopping the lesson
+- **Board highlighting:** on counting slides, flowers/dots on the board are highlighted one by one as Maya counts; a 👆 marker shows the active item
+- **Silence reprompt:** if no answer is heard for ~6 seconds (`ANSWER_SILENCE_MS`), Maya asks again politely
+- **Next Step** stays disabled until Maya finishes the current slide narration (button shows “Listen to Teacher Maya first”)
+- Tap **🔊 Hear again** to replay the teacher; captions show the same words on screen
+- **Save & resume:** finish a step → leave and return later to **continue on the next step**; leave mid-step → **restart that same step**
+- Class cards show **“Continue step N →”** when a class is in progress
 - **Replay classes** anytime from the class list — replays do **not** change saved progress or re-lock games
 
 ### Strict game unlock rules
@@ -78,7 +83,7 @@ During games, students can **tap the microphone** and **say the answer out loud*
 
 ## Features
 
-- **Interactive Math Classes** — Teacher Maya at the whiteboard, tap/voice answers on counting slides
+- **Interactive Math Classes** — Teacher Maya at the whiteboard with a simple portrait, tap/voice answers on counting slides
 - **Per-class game unlock** — finish Counting Class → counting games only; Compare Class → compare games only; and so on
 - **Class replay** — review any completed class without resetting progress
 - **Reset all progress** — home-screen button clears classes, coins, badges, scores, and locks games again (with confirmation)
@@ -217,8 +222,8 @@ The finish screen shows up to 3 new badges at a time (with a count if more were 
 | Screen | Purpose |
 |--------|---------|
 | **Menu** | Pick a game by class section; coins, badges, learning path, reset progress |
-| **Math Classes** | Browse and start/replay Teacher Maya lessons |
-| **Classroom** | Whiteboard lesson with speech and optional tap/voice answers |
+| **Math Classes** | Browse, continue, or replay Teacher Maya lessons |
+| **Classroom** | Whiteboard lesson with speech, captions, and optional tap/voice answers |
 | **Level select** | Choose Starter/Advanced tier and level 1–10 |
 | **Game** | Play 12 rounds; see score, progress, and personal best |
 | **Dashboard** | High scores, coins, and badges by category |
@@ -305,8 +310,9 @@ npx expo start --web
 ├── lessons.js          # Core Math Classes content and lesson progress helpers
 ├── lessonsExtra.js     # Compare, Even/Odd, Patterns, Mixed, BODMAS, Challenge classes
 ├── lessonMap.js        # Per-class game unlock and home menu sections
-├── LessonClassroom.js  # Teacher + whiteboard UI with spoken, interactive lessons
+├── LessonClassroom.js  # Classroom UI: teacher portrait, whiteboard, answers
 ├── lessonSpeech.js     # Text-to-speech narration and answer-step sequencing
+├── teacherConfig.js    # Teacher name/label/emoji (Maya, Teacher Maya, 👩‍🏫)
 ├── voiceAnswer.js      # Speech-to-text answer parsing (optional native module)
 ├── VoiceAnswerPanel.js # Microphone UI in game screen
 ├── progression.js      # Level unlocks, PASS_SCORE, difficulty scaling
@@ -323,15 +329,17 @@ npx expo start --web
 | **Screens** | Menu (by class), classes list, classroom, level select, game play, dashboard |
 | **Constants** | `MAX_ROUNDS = 12`, `MAX_SCORE = 5000`, `PASS_SCORE = 8`, `GAMES` from `games.js` |
 | **Storage keys** | `@mathGarden/highScores`, `@mathGarden/rewards`, `@mathGarden/progress` |
-| **Classes** | `LESSONS` (14 classes), `completeLesson`, replay-safe progress in `lessons.js` |
+| **Classes** | `LESSONS` (14 classes), `getResumeSlideIndex`, `saveLessonCheckpoint`, `markLessonStepComplete`, replay-safe progress in `lessons.js` |
+| **Teacher** | `teacherConfig.js` — change `TEACHER_NAME`, `TEACHER_LABEL`, or `TEACHER_EMOJI` in one place |
 | **Unlock** | `lessonMap.js` maps each game to a class; `progression.js` checks level/tier unlock |
 | **Voice** | `voiceAnswer.js` + `VoiceAnswerPanel.js`; disabled in Expo Go when native module missing |
 
 ## Configuration
 
-Key values in `app.json`:
+Key values in `app.json` and `teacherConfig.js`:
 
 - **Name:** Math Talk
+- **Teacher:** Maya (`Teacher Maya` in UI, `👩‍🏫` portrait)
 - **SDK:** 54.0.0
 - **Orientation:** portrait
 - **Splash background:** `#e9f7ee`
