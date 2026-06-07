@@ -1000,7 +1000,6 @@ export default function App() {
     return () => subscription.remove();
   }, [screen, lessonFinished]);
 
-  const currentHighScore = highScores[selectedGame.id]?.best ?? 0;
   const unlockedBadgeCount = Object.keys(rewards.badges).length;
 
   const dots = useMemo(
@@ -1109,33 +1108,38 @@ export default function App() {
     }).start();
   }
 
-  function startRound(gameId, tier = 1, level = 1) {
+  function clearGameSessionState() {
     if (feedbackTimer.current) {
       clearTimeout(feedbackTimer.current);
+      feedbackTimer.current = null;
     }
-
     stopGameVoiceInput();
+    setScore(0);
+    setRound(1);
+    setSelected(null);
+    setFinished(false);
+    setIsNewRecord(false);
+    setSessionReward(null);
+  }
+
+  function startRound(gameId, tier = 1, level = 1) {
+    clearGameSessionState();
 
     const game = getGameMeta(gameId);
     const config = getScaledConfig(game.config, game.roundType, tier, level);
 
-    setScore(0);
-    setRound(1);
     setSelectedTier(tier);
     setSelectedLevel(level);
     setRoundData(createRound(gameId, { config }));
     setRoundKey((k) => k + 1);
-    setSelected(null);
     setMessage(getInstruction(gameId));
-    setFinished(false);
-    setIsNewRecord(false);
-    setSessionReward(null);
   }
 
   function selectGame(game) {
     if (!isGameUnlocked(progress, game)) {
       return;
     }
+    clearGameSessionState();
     setSelectedGame(game);
     setSelectedTier(1);
     setScreen("levels");
@@ -1148,6 +1152,7 @@ export default function App() {
   }
 
   function backToLevels() {
+    clearGameSessionState();
     setScreen("levels");
   }
 
@@ -1155,7 +1160,7 @@ export default function App() {
     persistLessonCheckpoint();
     stopClassroomSpeech();
     stopLessonSpeech();
-    stopGameVoiceInput();
+    clearGameSessionState();
     setScreen("menu");
   }
 
@@ -1697,6 +1702,12 @@ export default function App() {
 
   function renderGame() {
     const stars = getStars(score);
+    const gameHighScore = highScores[selectedGame.id];
+    const sessionScoreLabel = formatScoreLabel(score);
+    const bestScoreLabel =
+      (gameHighScore?.plays ?? 0) > 0
+        ? formatScoreLabel(gameHighScore.best ?? 0)
+        : `0/${MAX_SCORE}`;
 
     return (
       <ScreenShell>
@@ -1743,7 +1754,7 @@ export default function App() {
               <LinearGradient colors={["#DBEAFE", "#BFDBFE"]} style={styles.statBox}>
                 <Text style={styles.statEmoji}>🏆</Text>
                 <Text style={styles.label}>Score</Text>
-                <Text style={styles.statValue}>{toDisplayScore(score)}</Text>
+                <Text style={styles.statValue}>{sessionScoreLabel}</Text>
               </LinearGradient>
               <LinearGradient colors={["#FCE7F3", "#FBCFE8"]} style={styles.statBox}>
                 <Text style={styles.statEmoji}>🎯</Text>
@@ -1755,9 +1766,7 @@ export default function App() {
               <LinearGradient colors={["#FEF3C7", "#FDE68A"]} style={styles.statBox}>
                 <Text style={styles.statEmoji}>⭐</Text>
                 <Text style={styles.label}>Best</Text>
-                <Text style={styles.statValue}>
-                  {formatScoreLabel(currentHighScore)}
-                </Text>
+                <Text style={styles.statValue}>{bestScoreLabel}</Text>
               </LinearGradient>
             </View>
 
