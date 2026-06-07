@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   ANSWER_SILENCE_MS,
+  MAX_ANSWER_REPROMPTS,
   buildAnswerPrompt,
   buildAnswerReprompt,
   buildCorrectFeedback,
@@ -84,9 +85,13 @@ function WhiteboardDrawing({ visual, slideKey, revealedCount, boardLabel, highli
 
             return (
               <AnimatedItem key={`${slideKey}-${index}`} delay={80} style={styles.boardDotWrap}>
-                {highlighted ? <Text style={styles.boardPointMarker}>👆</Text> : null}
-                <View style={[styles.boardCircle, highlighted && styles.boardCircleHighlight]}>
-                  <Text style={styles.boardCircleEmoji}>{visual.item}</Text>
+                <View style={styles.boardItemStack}>
+                  <View style={styles.boardPointSlot}>
+                    {highlighted ? <Text style={styles.boardPointMarker}>👇</Text> : null}
+                  </View>
+                  <View style={[styles.boardCircle, highlighted && styles.boardCircleHighlight]}>
+                    <Text style={styles.boardCircleEmoji}>{visual.item}</Text>
+                  </View>
                 </View>
                 <Text style={[styles.boardDotNumber, highlighted && styles.boardDotNumberHighlight]}>
                   {index + 1}
@@ -490,6 +495,9 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
   const voiceAvailableRef = useRef(false);
   const answerPromptRef = useRef(null);
   const answerTimeoutRef = useRef(null);
+  const answerRepromptCountRef = useRef(0);
+  const onSlideSpeechProgressRef = useRef(onSlideSpeechProgress);
+  const runLessonSequenceRef = useRef(() => {});
   const usesRevealSync =
     slide.visual?.type === "dots" || slide.visual?.type === "match" || slide.visual?.type === "celebrate";
 
@@ -582,6 +590,12 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
           return;
         }
 
+        if (answerRepromptCountRef.current >= MAX_ANSWER_REPROMPTS) {
+          setLiveCaption(buildAnswerPrompt(expected));
+          return;
+        }
+
+        answerRepromptCountRef.current += 1;
         stopVoiceSession();
         const reprompt = buildAnswerReprompt(expected);
         setLiveCaption(reprompt);
@@ -617,6 +631,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       stopVoiceSession();
 
       if (Number(guess) !== Number(expected)) {
+        answerRepromptCountRef.current = 0;
         setLiveCaption(buildWrongFeedback(expected));
         speakLessonFeedback(buildWrongFeedback(expected), {
           onDone: () => {
@@ -656,7 +671,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
     answerPromptRef.current = null;
     sequenceContinueRef.current = null;
 
-    onSlideSpeechProgress?.(false);
+    onSlideSpeechProgressRef.current?.(false);
 
     const plan = buildSlideSpeechPlan(slide, lesson, slideIndex);
     const syncReveal =
@@ -699,7 +714,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       setPointAtIndex(null);
       stopPulse();
       stopVoiceSession();
-      onSlideSpeechProgress?.(true);
+      onSlideSpeechProgressRef.current?.(true);
     };
 
     const handleWaitForAnswer = (step, continueFn) => {
@@ -707,6 +722,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       const prompt = { expected: step.waitForAnswer };
       answerPromptRef.current = prompt;
       setAnswerPrompt(prompt);
+      answerRepromptCountRef.current = 0;
       setLiveCaption(buildAnswerPrompt(step.waitForAnswer));
       syncPointTarget(step);
       setSpeaking(false);
@@ -730,7 +746,13 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
         }
       });
     }
-  }, [lesson, slide, slideIndex, startPulse, stopPulse, stopVoiceSession, clearAnswerTimeout, startVoiceForAnswer, scheduleAnswerReprompt, onSlideSpeechProgress]);
+  }, [lesson, slide, slideIndex, startPulse, stopPulse, stopVoiceSession, clearAnswerTimeout, startVoiceForAnswer, scheduleAnswerReprompt]);
+
+  runLessonSequenceRef.current = runLessonSequence;
+
+  useEffect(() => {
+    onSlideSpeechProgressRef.current = onSlideSpeechProgress;
+  }, [onSlideSpeechProgress]);
 
   useEffect(() => {
     checkVoiceAnswerSupport().then((result) => {
@@ -741,14 +763,14 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
   }, []);
 
   useEffect(() => {
-    runLessonSequence();
+    runLessonSequenceRef.current();
     return () => {
       stopLessonSpeech();
       stopVoiceSession();
       stopPulse();
       clearAnswerTimeout();
     };
-  }, [lesson.id, slideIndex, slideKey, runLessonSequence, stopVoiceSession, stopPulse, clearAnswerTimeout]);
+  }, [lesson.id, slideIndex, slideKey, stopVoiceSession, stopPulse, clearAnswerTimeout]);
 
   function replaySpeech() {
     runLessonSequence();
@@ -988,11 +1010,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8
   },
-  boardDotWrap: { alignItems: "center", gap: 2, minWidth: 48 },
-  boardPointMarker: {
-    fontSize: 16,
-    lineHeight: 18,
+  boardDotWrap: { alignItems: "center", gap: 4, minWidth: 52 },
+  boardItemStack: { alignItems: "center" },
+  boardPointSlot: {
+    height: 22,
+    alignItems: "center",
+    justifyContent: "flex-end",
     marginBottom: -2
+  },
+  boardPointMarker: {
+    fontSize: 20,
+    lineHeight: 22,
+    textAlign: "center"
   },
   boardCircle: {
     width: 44,

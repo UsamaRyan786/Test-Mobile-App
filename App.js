@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  BackHandler,
   Easing,
   Platform,
   Pressable,
@@ -990,6 +991,15 @@ export default function App() {
     progressRef.current = progress;
   }, [progress]);
 
+  useEffect(() => {
+    if (screen !== "lesson" || lessonFinished) {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => subscription.remove();
+  }, [screen, lessonFinished]);
+
   const currentHighScore = highScores[selectedGame.id]?.best ?? 0;
   const unlockedBadgeCount = Object.keys(rewards.badges).length;
 
@@ -1181,7 +1191,7 @@ export default function App() {
     saveProgressData(updated);
   }
 
-  function handleSlideSpeechProgress(complete) {
+  const onSlideSpeechProgress = useCallback((complete) => {
     setSlideSpeechComplete(complete);
     slideSpeechCompleteRef.current = complete;
 
@@ -1206,7 +1216,7 @@ export default function App() {
     setProgress(updated);
     progressRef.current = updated;
     saveProgressData(updated);
-  }
+  }, [lessonReplay, lessonFinished, selectedLesson]);
 
   function leaveLessonForClasses() {
     persistLessonCheckpoint();
@@ -1943,12 +1953,16 @@ export default function App() {
       <ScreenShell>
         <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
           <View style={styles.gameHeader}>
-            <Pressable
-              onPress={leaveLessonForClasses}
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]}
-            >
-              <Text style={styles.backButtonText}>← Classes</Text>
-            </Pressable>
+            {lessonFinished ? (
+              <Pressable
+                onPress={leaveLessonForClasses}
+                style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]}
+              >
+                <Text style={styles.backButtonText}>← Classes</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.lessonHeaderSpacer} />
+            )}
             <View style={styles.gameTitleCopy}>
               <Text style={styles.gameTitle}>{lesson.title}</Text>
               <Text style={styles.gameLevelBand}>
@@ -1978,7 +1992,7 @@ export default function App() {
                   slide={slide}
                   slideIndex={lessonSlide}
                   slideKey={`${selectedLesson.id}-${lessonSlide}-${lessonSlideKey}`}
-                  onSlideSpeechProgress={handleSlideSpeechProgress}
+                  onSlideSpeechProgress={onSlideSpeechProgress}
                 />
                 <Pressable
                   onPress={nextLessonSlide}
@@ -2937,6 +2951,10 @@ const styles = StyleSheet.create({
     color: "#2563EB",
     fontWeight: "900",
     fontSize: 13
+  },
+  lessonHeaderSpacer: {
+    width: 108,
+    height: 38
   },
   progressSection: {
     marginBottom: 12

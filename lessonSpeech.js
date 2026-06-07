@@ -83,6 +83,7 @@ export function buildAnswerReprompt(expected) {
 }
 
 export const ANSWER_SILENCE_MS = 6000;
+export const MAX_ANSWER_REPROMPTS = 2;
 
 function buildCountingSteps(slide, lesson, slideIndex) {
   const visual = slide.visual;

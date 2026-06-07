@@ -34,7 +34,7 @@ Class progress is saved in `@mathGarden/progress` under `lessons` (current step 
 - **Teacher Maya** speaks each slide aloud (`expo-speech`) while the **whiteboard** draws circles, groups, and equations step by step
 - **Simple teacher portrait** — a round 👩‍🏫 image with Maya’s name plate (no custom avatar figure); gentle pulse while she is speaking
 - **Interactive counting:** Maya pauses and asks the child to say or tap the answer; correct answers get praise, wrong answers get a gentle “try again” without stopping the lesson
-- **Board highlighting:** on counting slides, flowers/dots on the board are highlighted one by one as Maya counts; a 👆 marker shows the active item
+- **Board highlighting:** on counting slides, flowers/dots on the board are highlighted one by one as Maya counts; a 👇 marker points at the active item
 - **Silence reprompt:** if no answer is heard for ~6 seconds (`ANSWER_SILENCE_MS`), Maya asks again politely
 - **Next Step** stays disabled until Maya finishes the current slide narration (button shows “Listen to Teacher Maya first”)
 - Tap **🔊 Hear again** to replay the teacher; captions show the same words on screen
