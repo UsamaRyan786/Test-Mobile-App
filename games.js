@@ -1,4 +1,5 @@
 import { attachLessonIds } from "./lessonMap";
+import { BASIC_SHAPES, getShapeName } from "./shapes";
 
 const MIN_NUMBER = 1;
 const MAX_NUMBER = 10;
@@ -409,6 +410,54 @@ function buildDivideSimpleRound(config = {}) {
   };
 }
 
+function makeShapeNameChoices(shapeId, pool = BASIC_SHAPES) {
+  const choices = new Set([shapeId]);
+  while (choices.size < 4) {
+    choices.add(pool[randomInt(0, pool.length - 1)].id);
+  }
+  return shuffle([...choices]);
+}
+
+function buildShapeNameRound(config = {}) {
+  const pool = config.shapes ?? BASIC_SHAPES;
+  const shape = pool[randomInt(0, pool.length - 1)];
+  return {
+    label: shape.emoji,
+    shapeEmoji: shape.emoji,
+    target: shape.id,
+    choices: makeShapeNameChoices(shape.id, pool),
+    choiceType: "shapeName"
+  };
+}
+
+function buildShapeSidesRound(config = {}) {
+  const pool = (config.shapes ?? BASIC_SHAPES).filter((shape) => shape.sides >= 3);
+  const shape = pool[randomInt(0, pool.length - 1)];
+  const target = shape.sides;
+  return {
+    label: shape.emoji,
+    shapeEmoji: shape.emoji,
+    target,
+    choices: makeChoicesFromRange(target, Math.max(0, target - 2), target + 3),
+    choiceType: "number"
+  };
+}
+
+function buildShapeCountRound(config = {}) {
+  const min = config.min ?? 1;
+  const max = config.max ?? 8;
+  const target = randomInt(min, max);
+  const shape = BASIC_SHAPES[randomInt(0, BASIC_SHAPES.length - 1)];
+  return {
+    label: `${shape.emoji} × ${target}`,
+    shapeEmoji: shape.emoji,
+    shapeCount: target,
+    target,
+    choices: makeChoicesFromRange(target, min, max + 2),
+    choiceType: "number"
+  };
+}
+
 function buildBodmasRound(config = {}) {
   const kind =
     config.kind ||
@@ -521,7 +570,10 @@ const ROUND_BUILDERS = {
   divideSimple: buildDivideSimpleRound,
   subSame: buildSubSameRound,
   countBack: buildCountBackRound,
-  bodmas: buildBodmasRound
+  bodmas: buildBodmasRound,
+  shapeName: buildShapeNameRound,
+  shapeSides: buildShapeSidesRound,
+  shapeCount: buildShapeCountRound
 };
 
 const BASE_GAMES = [
@@ -543,6 +595,58 @@ const BASE_GAMES = [
 ];
 
 const EXTRA_GAME_DEFS = [
+  {
+    id: "shapeSpotter",
+    category: "shapes",
+    title: "Shape Spotter",
+    description: "Look at the shape and pick its name!",
+    emoji: "🔷",
+    roundType: "shapeName",
+    display: "shape",
+    showEquals: false,
+    instruction: "What shape is this?",
+    targetLabel: "🔷 Name this shape",
+    prompt: "Tap the shape name!"
+  },
+  {
+    id: "shapeMatch",
+    category: "shapes",
+    title: "Shape Match",
+    description: "Match each shape picture to the right name!",
+    emoji: "🎯",
+    roundType: "shapeName",
+    display: "shape",
+    showEquals: false,
+    instruction: "Find the matching name!",
+    targetLabel: "🎯 Match the shape",
+    prompt: "Which name matches?"
+  },
+  {
+    id: "shapeSides",
+    category: "shapes",
+    title: "Side Counter",
+    description: "Count how many sides each shape has!",
+    emoji: "📐",
+    roundType: "shapeSides",
+    display: "shape",
+    showEquals: false,
+    instruction: "How many sides?",
+    targetLabel: "📐 Count the sides",
+    prompt: "How many sides does it have?"
+  },
+  {
+    id: "shapeCount",
+    category: "shapes",
+    title: "Shape Count Garden",
+    description: "Count the shapes and pick the total!",
+    emoji: "🌺",
+    roundType: "shapeCount",
+    display: "shapeCount",
+    showEquals: false,
+    instruction: "Count all the shapes!",
+    targetLabel: "🔢 Count these shapes",
+    prompt: "How many shapes?"
+  },
   { id: "addTiny", category: "addition", title: "Tiny Totals", description: "Small additions from 1 to 5!", roundType: "addition", config: { aMax: 5, bMax: 5, choiceMax: 10 } },
   { id: "addMedium", category: "addition", title: "Medium Mix", description: "Add numbers up to 12!", roundType: "addition", config: { aMax: 12, bMax: 12, choiceMax: 24 } },
   { id: "addBig", category: "addition", title: "Big Sum Safari", description: "Larger additions for brave kids!", roundType: "addition", config: { aMin: 5, aMax: 15, bMin: 5, bMax: 15, choiceMax: 30 } },
@@ -632,6 +736,7 @@ const EXTRA_GAMES = EXTRA_GAME_DEFS.map((fields, index) =>
 
 export const GAME_CATEGORIES = [
   { id: "counting", label: "🔢 Counting" },
+  { id: "shapes", label: "🔷 Shapes" },
   { id: "compare", label: "⚖️ Compare" },
   { id: "evenOdd", label: "🦉 Even & Odd" },
   { id: "addition", label: "➕ Addition" },
@@ -662,6 +767,22 @@ export function createRound(gameId, options = {}) {
 
 export function isDotsGame(gameId) {
   return getGameMeta(gameId).display === "dots";
+}
+
+export function isShapeCountGame(gameId) {
+  return getGameMeta(gameId).display === "shapeCount";
+}
+
+export function isShapeDisplayGame(gameId) {
+  const display = getGameMeta(gameId).display;
+  return display === "shape" || display === "shapeCount";
+}
+
+export function formatChoiceLabel(roundData, choice) {
+  if (roundData?.choiceType === "shapeName") {
+    return getShapeName(choice);
+  }
+  return String(choice);
 }
 
 export function showEqualsHint(gameId) {

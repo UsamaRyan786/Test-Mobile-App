@@ -35,7 +35,7 @@ const CORE_LESSON_DEFS = [
         title: "You're Ready!",
         emoji: "🎉",
         body: "You learned to count! Dot-counting games like Number Match Garden are unlocked for you now.",
-        tip: "Next time, try Compare Class to learn bigger and smaller numbers!",
+        tip: "Next time, try Shapes Class to learn circles, squares, and triangles!",
         visual: { type: "celebrate", emoji: "🌈" }
       }
     ]
@@ -242,17 +242,18 @@ export const LESSONS = [
   CORE_LESSONS[0],
   EXTRA_LESSONS[0],
   EXTRA_LESSONS[1],
+  EXTRA_LESSONS[2],
   CORE_LESSONS[1],
   CORE_LESSONS[2],
   CORE_LESSONS[3],
   CORE_LESSONS[4],
-  EXTRA_LESSONS[2],
   EXTRA_LESSONS[3],
   EXTRA_LESSONS[4],
   EXTRA_LESSONS[5],
   EXTRA_LESSONS[6],
   EXTRA_LESSONS[7],
-  EXTRA_LESSONS[8]
+  EXTRA_LESSONS[8],
+  EXTRA_LESSONS[9]
 ];
 
 export const ALL_LESSONS = LESSONS;
@@ -261,6 +262,7 @@ const LESSON_MAP = Object.fromEntries(LESSONS.map((lesson) => [lesson.id, lesson
 
 export const CATEGORY_LESSON = {
   counting: "counting",
+  shapes: "shapes",
   addition: "addition",
   subtraction: "subtraction",
   multiplication: "multiplication",

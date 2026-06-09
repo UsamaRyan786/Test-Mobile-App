@@ -2,6 +2,7 @@ import { LESSONS, getLesson, isLessonComplete, isLessonUnlocked, getLessonUnlock
 
 export const LESSON_BY_CATEGORY = {
   counting: "counting",
+  shapes: "shapes",
   compare: "compare",
   evenOdd: "evenOdd",
   addition: "addition",

@@ -23,6 +23,20 @@ import {
 } from "./voiceAnswer";
 import { TEACHER_LABEL, TEACHER_EMOJI } from "./teacherConfig";
 
+function getShapeBoardLayout(shapeCount) {
+  if (shapeCount <= 3) {
+    return {
+      columns: shapeCount,
+      large: true,
+      tileBasis: shapeCount === 1 ? "72%" : "31%"
+    };
+  }
+  if (shapeCount <= 5) {
+    return { columns: 3, large: false, tileBasis: "31%" };
+  }
+  return { columns: 4, large: false, tileBasis: "23%" };
+}
+
 function AnimatedItem({ delay, children, style }) {
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -109,6 +123,65 @@ function WhiteboardDrawing({ visual, slideKey, revealedCount, boardLabel, highli
         ) : showCount === 0 ? (
           <Text style={styles.boardWaitingText}>Watch {TEACHER_LABEL} draw…</Text>
         ) : null}
+      </View>
+    );
+  }
+
+  if (visual.type === "shapes") {
+    const shapes = visual.shapes || [];
+    const { columns, large, tileBasis } = getShapeBoardLayout(shapes.length);
+    const rows = [];
+
+    for (let index = 0; index < shapes.length; index += columns) {
+      rows.push(shapes.slice(index, index + columns));
+    }
+
+    return (
+      <View style={[styles.boardContent, styles.boardShapesContent]}>
+        {visual.label ? (
+          <Text style={styles.boardShapeSectionLabel} numberOfLines={1}>
+            {visual.label}
+          </Text>
+        ) : (
+          <Text style={styles.boardShapeSectionLabel}>Basic shapes</Text>
+        )}
+        <View style={styles.boardShapesLayout}>
+          {rows.map((row, rowIndex) => (
+            <View
+              key={`${slideKey}-shape-row-${rowIndex}`}
+              style={[styles.boardShapeRow, large && styles.boardShapeRowLarge]}
+            >
+              {row.map((shape, columnIndex) => {
+                const itemIndex = rowIndex * columns + columnIndex;
+
+                return (
+                  <AnimatedItem
+                    key={`${slideKey}-${shape.id ?? itemIndex}`}
+                    delay={itemIndex * 90}
+                    style={[styles.boardShapeTile, { flexBasis: tileBasis }]}
+                  >
+                    <View style={[styles.boardShapeTileInner, large && styles.boardShapeTileInnerLarge]}>
+                      <Text style={[styles.boardShapeEmoji, large && styles.boardShapeEmojiLarge]}>
+                        {shape.emoji}
+                      </Text>
+                      <Text
+                        style={[styles.boardShapeName, large && styles.boardShapeNameLarge]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.8}
+                      >
+                        {shape.name}
+                      </Text>
+                      <Text style={styles.boardShapeMeta}>
+                        {shape.sides > 0 ? `${shape.sides} sides` : "round"}
+                      </Text>
+                    </View>
+                  </AnimatedItem>
+                );
+              })}
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
@@ -805,7 +878,12 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
               <View style={[styles.chalk, { backgroundColor: "#86EFAC" }]} />
             </View>
           </View>
-          <View style={styles.whiteboardSurface}>
+          <View
+            style={[
+              styles.whiteboardSurface,
+              slide.visual?.type === "shapes" && styles.whiteboardSurfaceShapes
+            ]}
+          >
             <WhiteboardDrawing
               visual={slide.visual}
               slideKey={slideKey}
@@ -998,6 +1076,7 @@ const styles = StyleSheet.create({
   chalkTray: { flexDirection: "row", gap: 4 },
   chalk: { width: 16, height: 5, borderRadius: 3 },
   whiteboardSurface: { minHeight: 168, padding: 10, backgroundColor: "#1F4D3A" },
+  whiteboardSurfaceShapes: { minHeight: 210, paddingVertical: 8, paddingHorizontal: 6 },
   boardEmpty: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 130 },
   boardEmptyText: { color: "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: "700" },
   boardWaitingText: { color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: "700", marginTop: 6 },
@@ -1106,6 +1185,62 @@ const styles = StyleSheet.create({
   boardSkipNumber: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
   boardCelebrate: { alignItems: "center", justifyContent: "center", minHeight: 150, gap: 8 },
   boardCelebrateEmoji: { fontSize: 48 },
+  boardShapesContent: { width: "100%", gap: 6 },
+  boardShapeSectionLabel: {
+    color: "#FDE047",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: 0.3
+  },
+  boardShapesLayout: { width: "100%", gap: 6 },
+  boardShapeRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "stretch",
+    gap: 5
+  },
+  boardShapeRowLarge: { gap: 8 },
+  boardShapeTile: {
+    flexGrow: 0,
+    flexShrink: 0,
+    alignItems: "stretch"
+  },
+  boardShapeTileInner: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 5,
+    paddingHorizontal: 2,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.55)",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    minHeight: 58,
+    gap: 1
+  },
+  boardShapeTileInnerLarge: {
+    minHeight: 72,
+    paddingVertical: 8,
+    borderColor: "rgba(253,224,71,0.85)",
+    backgroundColor: "rgba(255,255,255,0.14)"
+  },
+  boardShapeEmoji: { fontSize: 24, lineHeight: 28 },
+  boardShapeEmojiLarge: { fontSize: 30, lineHeight: 34 },
+  boardShapeName: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+    textAlign: "center",
+    marginTop: 1
+  },
+  boardShapeNameLarge: { fontSize: 11 },
+  boardShapeMeta: {
+    color: "#86EFAC",
+    fontSize: 8,
+    fontWeight: "700",
+    textAlign: "center"
+  },
   boardCelebrateText: { color: "#FFFFFF", fontSize: 18, fontWeight: "900" },
   captionBox: { padding: 12, borderRadius: 14, backgroundColor: "#F8FAFC", gap: 6 },
   captionLive: { color: "#6366F1", fontSize: 11, fontWeight: "900", textTransform: "uppercase" },

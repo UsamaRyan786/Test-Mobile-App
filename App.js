@@ -26,6 +26,9 @@ import {
   createRound,
   getGameMeta,
   isDotsGame,
+  isShapeCountGame,
+  isShapeDisplayGame,
+  formatChoiceLabel,
   showEqualsHint,
   usesWideQuestionText,
   usesSequenceQuestionText,
@@ -33,6 +36,7 @@ import {
   getTargetLabel,
   getPrompt
 } from "./games";
+import { getShapeName } from "./shapes";
 import {
   PROGRESS_KEY,
   LEVELS_PER_TIER,
@@ -435,7 +439,7 @@ function AnimatedDot({ index, color, roundKey }) {
   );
 }
 
-function ChoiceButton({ choice, onPress, disabled, isCorrect, isWrong }) {
+function ChoiceButton({ choice, label, onPress, disabled, isCorrect, isWrong, compact }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -514,9 +518,9 @@ function ChoiceButton({ choice, onPress, disabled, isCorrect, isWrong }) {
           isWrong && styles.wrongChoice
         ]}
         accessibilityRole="button"
-        accessibilityLabel={`Choose ${choice}`}
+        accessibilityLabel={`Choose ${label ?? choice}`}
       >
-        <Text style={styles.choiceText}>{choice}</Text>
+        <Text style={[styles.choiceText, compact && styles.choiceTextCompact]}>{label ?? choice}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -1002,13 +1006,12 @@ export default function App() {
 
   const unlockedBadgeCount = Object.keys(rewards.badges).length;
 
-  const dots = useMemo(
-    () =>
-      isDotsGame(selectedGame.id)
-        ? Array.from({ length: roundData.target }, (_, index) => index)
-        : [],
-    [roundData.target, selectedGame.id]
-  );
+  const dots = useMemo(() => {
+    if (isDotsGame(selectedGame.id) || isShapeCountGame(selectedGame.id)) {
+      return Array.from({ length: roundData.target }, (_, index) => index);
+    }
+    return [];
+  }, [roundData.target, selectedGame.id]);
 
   const gameTheme = GAMES.find((g) => g.id === selectedGame.id) || GAMES[0];
 
@@ -1406,9 +1409,9 @@ export default function App() {
 
     setSelected(number);
     setScore(nextScore);
-    setMessage(
-      isCorrect ? "🎉 Awesome! You got it!" : `💪 Almost! The answer is ${roundData.target}.`
-    );
+    const answerLabel =
+      roundData.choiceType === "shapeName" ? getShapeName(roundData.target) : String(roundData.target);
+    setMessage(isCorrect ? "🎉 Awesome! You got it!" : `💪 Almost! The answer is ${answerLabel}.`);
     pulseMessage();
 
     feedbackTimer.current = setTimeout(() => goToNextRound(nextScore), 1200);
@@ -1783,6 +1786,21 @@ export default function App() {
                     />
                   ))}
                 </View>
+              ) : isShapeCountGame(selectedGame.id) ? (
+                <View
+                  style={styles.shapeCountGrid}
+                  accessibilityLabel={`${roundData.target} shapes to count`}
+                >
+                  {dots.map((dot) => (
+                    <Text key={`${roundKey}-${dot}`} style={styles.shapeCountEmoji}>
+                      {roundData.shapeEmoji}
+                    </Text>
+                  ))}
+                </View>
+              ) : isShapeDisplayGame(selectedGame.id) ? (
+                <View style={styles.shapeDisplayCard} accessibilityLabel="Shape to identify">
+                  <Text style={styles.shapeDisplayEmoji}>{roundData.shapeEmoji}</Text>
+                </View>
               ) : (
                 <View style={styles.questionCard}>
                   <LinearGradient colors={gameTheme.gradient} style={styles.questionGradient}>
@@ -1882,6 +1900,8 @@ export default function App() {
                     <ChoiceButton
                       key={choice}
                       choice={choice}
+                      label={formatChoiceLabel(roundData, choice)}
+                      compact={roundData.choiceType === "shapeName"}
                       disabled={selected !== null}
                       isCorrect={isCorrectChoice}
                       isWrong={isWrongChoice}
@@ -3058,6 +3078,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minHeight: 120
   },
+  shapeCountGrid: {
+    marginTop: 12,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 120
+  },
+  shapeCountEmoji: {
+    fontSize: 40,
+    lineHeight: 48
+  },
+  shapeDisplayCard: {
+    marginTop: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 120
+  },
+  shapeDisplayEmoji: {
+    fontSize: 88,
+    lineHeight: 100
+  },
   dot: {
     width: 44,
     height: 44,
@@ -3158,6 +3201,10 @@ const styles = StyleSheet.create({
     color: THEME.text,
     fontSize: 36,
     fontWeight: "900"
+  },
+  choiceTextCompact: {
+    fontSize: 18,
+    letterSpacing: 0.2
   },
   correctChoice: {
     borderColor: "#4ADE80",

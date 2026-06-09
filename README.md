@@ -11,21 +11,22 @@ Before jumping into games, kids join **Teacher Maya** for short spoken lessons w
 | # | Class | What it teaches | Unlocks |
 |---|-------|-----------------|---------|
 | 1 | 🔢 **Counting Class** | Count objects one by one | Counting games (dots, number match) |
-| 2 | ⚖️ **Compare Class** | Bigger and smaller numbers | Compare games |
-| 3 | 🦉 **Even & Odd Class** | Even vs odd numbers | Parity games |
-| 4 | ➕ **Addition Class** | Putting groups together (+) | Addition games |
-| 5 | ➖ **Subtraction Class** | Taking away (−) | Subtraction games |
-| 6 | ✖️ **Multiplication Class** | Equal groups (×) | Multiplication games |
-| 7 | ➗ **Division Class** | Sharing equally (÷) | Division games |
-| 8 | 🔮 **Patterns Class** | Sequences and skip counting | Pattern games |
-| 9 | 🎲 **Mixed Operations Class** | + − × ÷ together | Mixed games |
-| 10 | 📐 **BODMAS Intro Class** | Order of operations overview | BODMAS Order Quiz |
-| 11 | 🪝 **Brackets Class** | Brackets `( )` first | Bracket BODMAS games |
-| 12 | ⏩ **Multiply & Divide First Class** | × and ÷ before + and − | ×÷-first BODMAS games |
-| 13 | 🏆 **Full BODMAS Class** | Full rule: brackets → ×÷ → +− | Full BODMAS games |
-| 14 | 🥇 **Challenge Class** | Expert mixed practice | Challenge games |
+| 2 | 🔷 **Shapes Class** | Circles, squares, triangles & more | Shape games (name, sides, count) |
+| 3 | ⚖️ **Compare Class** | Bigger and smaller numbers | Compare games |
+| 4 | 🦉 **Even & Odd Class** | Even vs odd numbers | Parity games |
+| 5 | ➕ **Addition Class** | Putting groups together (+) | Addition games |
+| 6 | ➖ **Subtraction Class** | Taking away (−) | Subtraction games |
+| 7 | ✖️ **Multiplication Class** | Equal groups (×) | Multiplication games |
+| 8 | ➗ **Division Class** | Sharing equally (÷) | Division games |
+| 9 | 🔮 **Patterns Class** | Sequences and skip counting | Pattern games |
+| 10 | 🎲 **Mixed Operations Class** | + − × ÷ together | Mixed games |
+| 11 | 📐 **BODMAS Intro Class** | Order of operations overview | BODMAS Order Quiz |
+| 12 | 🪝 **Brackets Class** | Brackets `( )` first | Bracket BODMAS games |
+| 13 | ⏩ **Multiply & Divide First Class** | × and ÷ before + and − | ×÷-first BODMAS games |
+| 14 | 🏆 **Full BODMAS Class** | Full rule: brackets → ×÷ → +− | Full BODMAS games |
+| 15 | 🥇 **Challenge Class** | Expert mixed practice | Challenge games |
 
-**Class order:** Counting → Compare → Even & Odd → Addition → Subtraction → Multiplication → Division → Patterns → Mixed → BODMAS Intro → Brackets → ×÷ First → Full BODMAS → Challenge.
+**Class order:** Counting → Shapes → Compare → Even & Odd → Addition → Subtraction → Multiplication → Division → Patterns → Mixed → BODMAS Intro → Brackets → ×÷ First → Full BODMAS → Challenge.
 
 Class progress is saved in `@mathGarden/progress` under `lessons` (current step index and completion flag).
 
@@ -88,24 +89,25 @@ During games, students can **tap the microphone** and **say the answer out loud*
 - **Class replay** — review any completed class without resetting progress
 - **Reset all progress** — home-screen button clears classes, coins, badges, scores, and locks games again (with confirmation)
 - **Speak your answer** — tap 🎤 in games (dev build) via `expo-speech-recognition`
-- **79 math mini-games** covering counting, compare, even/odd, addition, subtraction, multiplication, division, patterns, mixed, BODMAS, and challenge modes
+- **83 math mini-games** covering counting, shapes, compare, even/odd, addition, subtraction, multiplication, division, patterns, mixed, BODMAS, and challenge modes
 - **12 questions per game** with 4 multiple-choice answers each
 - **Star ratings** (0–3 stars) based on correct answers out of 12
 - **High score tracking** saved locally with AsyncStorage
 - **Garden coins & badges** — earn coins and unlock **450+ achievement badges**
 - **Home screen summary** — coins, badge progress, learning path, top score, and per-game best scores on each card
-- **Grouped game menu** — sections follow the **14 Math Classes** order
+- **Grouped game menu** — sections follow the **15 Math Classes** order
 - **High Scores dashboard** — stats, sorted leaderboard, and full badge collection
 - **Animated UI** with gradients, bouncing dots, button feedback, and progress bar
 - **Portrait-only**, light theme; test in **Expo Go**, voice in **dev builds**
 
-## Games (79 total)
+## Games (83 total)
 
 Games are defined in `games.js` and grouped on the home screen by **lesson** (`getLessonGameSections`):
 
 | Category | Games | Examples |
 |----------|-------|----------|
 | 🔢 **Counting** | 3 | Number Match Garden, Tiny Dot Garden, Big Dot Field |
+| 🔷 **Shapes** | 4 | Shape Spotter, Shape Match, Side Counter, Shape Count Garden |
 | ⚖️ **Compare** | 3 | Compare Castle, Smaller Swamp, Big Compare Bay |
 | 🦉 **Even & Odd** | 2 | Odd Owl, Even Elephant |
 | ➕ **Addition** | 13 | Addition Adventure, Make Ten/Five/Twenty, Tiny Totals, Triple Add Trail |
@@ -306,7 +308,8 @@ npx expo start --web
 ```
 .
 ├── App.js              # Main app: UI, scores, rewards, screens, reset progress
-├── games.js            # 79 games, round generators, categories
+├── games.js            # 83 games, round generators, categories
+├── shapes.js           # Basic shape definitions (circle, square, triangle, …)
 ├── lessons.js          # Core Math Classes content and lesson progress helpers
 ├── lessonsExtra.js     # Compare, Even/Odd, Patterns, Mixed, BODMAS, Challenge classes
 ├── lessonMap.js        # Per-class game unlock and home menu sections
@@ -329,7 +332,7 @@ npx expo start --web
 | **Screens** | Menu (by class), classes list, classroom, level select, game play, dashboard |
 | **Constants** | `MAX_ROUNDS = 12`, `MAX_SCORE = 5000`, `PASS_SCORE = 8`, `GAMES` from `games.js` |
 | **Storage keys** | `@mathGarden/highScores`, `@mathGarden/rewards`, `@mathGarden/progress` |
-| **Classes** | `LESSONS` (14 classes), `getResumeSlideIndex`, `saveLessonCheckpoint`, `markLessonStepComplete`, replay-safe progress in `lessons.js` |
+| **Classes** | `LESSONS` (15 classes), `getResumeSlideIndex`, `saveLessonCheckpoint`, `markLessonStepComplete`, replay-safe progress in `lessons.js` |
 | **Teacher** | `teacherConfig.js` — change `TEACHER_NAME`, `TEACHER_LABEL`, or `TEACHER_EMOJI` in one place |
 | **Unlock** | `lessonMap.js` maps each game to a class; `progression.js` checks level/tier unlock |
 | **Voice** | `voiceAnswer.js` + `VoiceAnswerPanel.js`; disabled in Expo Go when native module missing |

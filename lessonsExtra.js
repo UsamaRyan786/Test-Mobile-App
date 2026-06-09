@@ -1,4 +1,5 @@
 import { TEACHER_LABEL } from "./teacherConfig";
+import { BASIC_SHAPES } from "./shapes";
 
 function classSlides(topic, emoji, tip, visual) {
   return [
@@ -35,6 +36,61 @@ function classSlides(topic, emoji, tip, visual) {
 
 export const EXTRA_LESSONS = [
   {
+    id: "shapes",
+    category: "shapes",
+    menuLabel: "Shapes",
+    title: "Shapes Class",
+    subtitle: "Learn circles, squares, triangles & more!",
+    emoji: "🔷",
+    gradient: ["#FBCFE8", "#EC4899"],
+    unlockAfter: "counting",
+    slides: [
+      {
+        title: "What Are Shapes?",
+        emoji: "🔷",
+        body: "Shapes are flat forms we see everywhere — on signs, toys, windows, and drawings!",
+        tip: "Look around you. Can you spot a circle or a square?",
+        visual: { type: "shapes", shapes: BASIC_SHAPES }
+      },
+      {
+        title: "Round Shapes",
+        emoji: "⭕",
+        body: "Circle, oval, and heart are round shapes. They curve smoothly with no pointy corners.",
+        tip: "A ball looks like a circle. An egg looks like an oval.",
+        visual: {
+          type: "shapes",
+          shapes: BASIC_SHAPES.filter((shape) => shape.group === "round"),
+          label: "Round shapes:"
+        }
+      },
+      {
+        title: "Shapes with Corners",
+        emoji: "🟧",
+        body: "Square, rectangle, triangle, star, and diamond have straight sides and corners.",
+        tip: "A triangle has 3 sides. A square has 4 equal sides.",
+        visual: {
+          type: "shapes",
+          shapes: BASIC_SHAPES.filter((shape) => shape.group === "corners"),
+          label: "Shapes with corners:"
+        }
+      },
+      {
+        title: "Count the Shapes",
+        emoji: "🔺",
+        body: "You can count shapes just like you count objects. How many triangles do you see?",
+        tip: "Point to each triangle and say one, two, three…",
+        visual: { type: "dots", count: 4, item: "🔺", itemLabel: "triangle" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You learned basic shapes! Shape games are unlocked for you now.",
+        tip: "Next time, try Compare Class to learn bigger and smaller numbers!",
+        visual: { type: "celebrate", emoji: "🔷" }
+      }
+    ]
+  },
+  {
     id: "compare",
     category: "compare",
     menuLabel: "Compare",
@@ -42,7 +98,7 @@ export const EXTRA_LESSONS = [
     subtitle: "Learn bigger and smaller numbers!",
     emoji: "⚖️",
     gradient: ["#BFDBFE", "#3B82F6"],
-    unlockAfter: "counting",
+    unlockAfter: "shapes",
     slides: classSlides(
       "Compare",
       "⚖️",
