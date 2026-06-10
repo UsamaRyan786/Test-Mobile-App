@@ -1887,6 +1887,7 @@ export default function App() {
               <>
                 <VoiceAnswerPanel
                   choices={roundData.choices}
+                  choiceType={roundData.choiceType || "number"}
                   disabled={selected !== null}
                   roundKey={`${roundKey}-${round}`}
                   onAnswer={chooseNumber}

@@ -623,13 +623,10 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
         return;
       }
 
-      for (let attempt = 0; attempt < 30; attempt += 1) {
-        if (!(await getIsSpeaking())) {
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 150));
+      if (await getIsSpeaking()) {
+        stopLessonSpeech();
       }
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      await new Promise((resolve) => setTimeout(resolve, 180));
 
       const granted = await ensureMicPermission();
       if (!granted) {
@@ -642,6 +639,7 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       voiceSessionRef.current = createVoiceAnswerSession({
         choices: buildAnswerChoices(expected),
         expected,
+        choiceType: "number",
         onTranscript: setHeardText,
         onListeningChange: setListening,
         onResult: (answer) => handleStudentAnswerRef.current(answer),

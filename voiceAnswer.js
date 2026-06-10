@@ -1,5 +1,6 @@
 import Constants from "expo-constants";
 import { requireOptionalNativeModule } from "expo";
+import { getShapeName } from "./shapes";
 
 const WORD_NUMBERS = {
   zero: 0,
@@ -11,6 +12,7 @@ const WORD_NUMBERS = {
   too: 2,
   three: 3,
   tree: 3,
+  free: 3,
   four: 4,
   for: 4,
   five: 5,
@@ -32,6 +34,8 @@ const WORD_NUMBERS = {
   twenty: 20,
   thirty: 30
 };
+
+const LISTEN_TIMEOUT_MS = 5000;
 
 export function parseSpokenNumber(transcript) {
   if (!transcript) {
@@ -60,15 +64,129 @@ export function parseSpokenNumber(transcript) {
   return null;
 }
 
-export function parseSpokenAnswer(transcript, choices = []) {
-  const parsed = parseSpokenNumber(transcript);
-  if (parsed == null) {
+function normalizeTranscript(transcript) {
+  return transcript.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function matchShapeChoice(transcript, choices) {
+  const text = normalizeTranscript(transcript);
+  if (!text) {
     return null;
   }
 
-  const validChoices = choices.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
-  if (validChoices.length === 0 || validChoices.includes(parsed)) {
+  for (const choice of choices) {
+    const name = getShapeName(choice).toLowerCase();
+    if (text === name || text.includes(name)) {
+      return choice;
+    }
+  }
+
+  for (const choice of choices) {
+    const name = getShapeName(choice).toLowerCase();
+    const prefix = name.slice(0, Math.min(4, name.length));
+    if (prefix.length >= 3 && text.includes(prefix)) {
+      return choice;
+    }
+  }
+
+  return null;
+}
+
+export function matchSpokenToChoices(transcript, choices = [], choiceType = "number") {
+  if (!transcript || !choices.length) {
+    return null;
+  }
+
+  if (choiceType === "shapeName") {
+    return matchShapeChoice(transcript, choices);
+  }
+
+  const numericChoices = choices.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
+  const parsed = parseSpokenNumber(transcript);
+  if (parsed != null && numericChoices.includes(parsed)) {
     return parsed;
+  }
+
+  const text = normalizeTranscript(transcript);
+  for (const choice of numericChoices) {
+    const pattern = new RegExp(`\\b${choice}\\b`);
+    if (pattern.test(text)) {
+      return choice;
+    }
+  }
+
+  return null;
+}
+
+export function parseSpokenAnswer(transcript, choices = [], choiceType = "number") {
+  return matchSpokenToChoices(transcript, choices, choiceType);
+}
+
+function buildChoiceHints(choices = [], choiceType = "number", expected) {
+  const hints = new Set();
+
+  for (const choice of choices) {
+    if (choiceType === "shapeName") {
+      hints.add(getShapeName(choice));
+      continue;
+    }
+
+    const value = Number(choice);
+    if (Number.isNaN(value)) {
+      continue;
+    }
+
+    hints.add(String(value));
+    const word = Object.entries(WORD_NUMBERS).find(([, num]) => num === value)?.[0];
+    if (word) {
+      hints.add(word);
+    }
+  }
+
+  if (expected != null && choiceType !== "shapeName") {
+    const expectedValue = Number(expected);
+    if (!Number.isNaN(expectedValue)) {
+      hints.add(String(expectedValue));
+      const word = Object.entries(WORD_NUMBERS).find(([, num]) => num === expectedValue)?.[0];
+      if (word) {
+        hints.add(word);
+      }
+    }
+  }
+
+  return [...hints];
+}
+
+function extractTranscriptsFromEvent(event) {
+  const transcripts = [];
+
+  for (const result of event.results || []) {
+    if (result?.transcript) {
+      transcripts.push(result.transcript);
+    }
+
+    for (const alternative of result?.alternatives || []) {
+      if (alternative?.transcript) {
+        transcripts.push(alternative.transcript);
+      }
+    }
+  }
+
+  if (event.results?.[0]?.transcript) {
+    transcripts.unshift(event.results[0].transcript);
+  }
+
+  return [...new Set(transcripts.filter(Boolean))];
+}
+
+function resolveAnswerFromEvent(event, choices, choiceType) {
+  const transcripts = extractTranscriptsFromEvent(event);
+
+  for (const transcript of transcripts) {
+    const answer = matchSpokenToChoices(transcript, choices, choiceType);
+    if (answer != null) {
+      return { answer, transcript };
+    }
   }
 
   return null;
@@ -157,6 +275,7 @@ export async function ensureMicPermission() {
 export function createVoiceAnswerSession({
   choices,
   expected,
+  choiceType = "number",
   onTranscript,
   onResult,
   onError,
@@ -168,17 +287,29 @@ export function createVoiceAnswerSession({
     return { stop: () => {} };
   }
 
-  const numberHints = [];
-  const maxChoice = Math.max(...choices.map(Number), expected || 0, 10);
-  for (let value = 1; value <= Math.min(maxChoice, 15); value += 1) {
-    numberHints.push(String(value));
-    const word = Object.entries(WORD_NUMBERS).find(([, num]) => num === value)?.[0];
-    if (word) {
-      numberHints.push(word);
-    }
-  }
-
+  const numberHints = buildChoiceHints(choices, choiceType, expected);
   let finished = false;
+  let listenTimeout = null;
+
+  const finishSession = (stopModule = true) => {
+    if (finished) {
+      return;
+    }
+
+    finished = true;
+    if (listenTimeout) {
+      clearTimeout(listenTimeout);
+      listenTimeout = null;
+    }
+
+    if (stopModule) {
+      try {
+        module.stop();
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   const subscriptions = [
     module.addListener("start", () => onListeningChange?.(true)),
@@ -188,36 +319,44 @@ export function createVoiceAnswerSession({
         return;
       }
 
-      const transcript = event.results?.[0]?.transcript || "";
-      if (transcript) {
-        onTranscript?.(transcript);
+      const transcripts = extractTranscriptsFromEvent(event);
+      const latest = transcripts[0] || "";
+      if (latest) {
+        onTranscript?.(latest);
       }
 
-      const answer = parseSpokenAnswer(transcript, choices);
-      if (answer == null) {
+      const resolved = resolveAnswerFromEvent(event, choices, choiceType);
+      if (!resolved) {
         return;
       }
 
-      if (!event.isFinal && transcript.trim().split(/\s+/).length > 3) {
-        return;
-      }
-
-      finished = true;
-      onResult?.(answer, transcript);
-      try {
-        module.stop();
-      } catch {
-        // ignore
-      }
+      finishSession(true);
+      onResult?.(resolved.answer, resolved.transcript);
     }),
     module.addListener("error", (event) => {
-      if (event.error === "aborted" || event.error === "no-speech") {
+      if (event.error === "aborted") {
         return;
       }
-      onError?.(event.message || "Could not hear you. Tap the mic and try again!");
+
+      if (event.error === "no-speech") {
+        onError?.("Didn't hear an answer. Tap the mic and try again.");
+      } else {
+        onError?.(event.message || "Could not hear you. Tap the mic and try again!");
+      }
+      finishSession(false);
       onListeningChange?.(false);
     })
   ];
+
+  listenTimeout = setTimeout(() => {
+    if (finished) {
+      return;
+    }
+
+    finishSession(true);
+    onError?.("That took too long. Tap an answer or tap the mic again.");
+    onListeningChange?.(false);
+  }, LISTEN_TIMEOUT_MS);
 
   try {
     module.start({
@@ -228,11 +367,15 @@ export function createVoiceAnswerSession({
       contextualStrings: numberHints,
       iosTaskHint: "confirmation",
       androidIntentOptions: {
-        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 2500,
-        EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 1800
+        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 900,
+        EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 600,
+        EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 300
       }
     });
   } catch (error) {
+    if (listenTimeout) {
+      clearTimeout(listenTimeout);
+    }
     onError?.(error?.message || "Could not start the microphone.");
     return { stop: () => {} };
   }
@@ -240,6 +383,10 @@ export function createVoiceAnswerSession({
   return {
     stop() {
       finished = true;
+      if (listenTimeout) {
+        clearTimeout(listenTimeout);
+        listenTimeout = null;
+      }
       subscriptions.forEach((subscription) => subscription.remove());
       try {
         module.abort();
