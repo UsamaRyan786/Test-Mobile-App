@@ -2,21 +2,99 @@ import {
   CATEGORY_LESSON,
   getLessonForCategory,
   getLessonUnlockHint,
+  getPlayableLessonTitles,
+  isGameUnlockedByLesson,
   isLessonComplete,
   isLessonUnlocked
 } from "./lessons";
-import { getPlayableLessonTitles, isGameUnlockedByLesson } from "./lessonMap";
 
 export const PROGRESS_KEY = "@mathGarden/progress";
 export const LEVELS_PER_TIER = 10;
 export const PASS_SCORE = 8;
 export const MIN_LEVEL_FOR_NEXT_CATEGORY = 3;
 
+/** 10-level voice learning path aligned with Pakistani curriculum. */
 export const LEARNING_PATH = [
-  { id: "addition", label: "Plus", emoji: "➕", color: "#22C55E" },
-  { id: "subtraction", label: "Minus", emoji: "➖", color: "#3B82F6" },
-  { id: "multiplication", label: "Times", emoji: "✖️", color: "#EC4899" },
-  { id: "division", label: "Divide", emoji: "➗", color: "#F97316" }
+  {
+    id: "level1",
+    lessonId: "numbers",
+    masteryCategories: ["counting"],
+    label: "Count",
+    emoji: "🔢",
+    color: "#3B82F6"
+  },
+  {
+    id: "level2",
+    lessonId: "addition",
+    masteryCategories: ["addition"],
+    label: "Add",
+    emoji: "➕",
+    color: "#22C55E"
+  },
+  {
+    id: "level3",
+    lessonId: "subtraction",
+    masteryCategories: ["subtraction"],
+    label: "Subtract",
+    emoji: "➖",
+    color: "#6366F1"
+  },
+  {
+    id: "level4",
+    lessonId: "timesTables",
+    masteryCategories: ["multiplication"],
+    label: "Tables",
+    emoji: "🗼",
+    color: "#EC4899"
+  },
+  {
+    id: "level5",
+    lessonId: "division",
+    masteryCategories: ["division"],
+    label: "Divide",
+    emoji: "➗",
+    color: "#F97316"
+  },
+  {
+    id: "level6",
+    lessonId: "fractions",
+    masteryCategories: ["division"],
+    label: "Fractions",
+    emoji: "🍕",
+    color: "#E11D48"
+  },
+  {
+    id: "level7",
+    lessonId: "decimals",
+    masteryCategories: ["mixed"],
+    label: "Decimals",
+    emoji: "🔢",
+    color: "#0891B2"
+  },
+  {
+    id: "level8",
+    lessonId: "percentage",
+    masteryCategories: ["mixed"],
+    label: "Percent",
+    emoji: "💯",
+    color: "#7C3AED"
+  },
+  {
+    id: "level9",
+    lessonId: "algebraBasics",
+    masteryCategories: ["bodmas"],
+    label: "Algebra",
+    emoji: "🔤",
+    color: "#BE185D"
+  },
+  {
+    id: "level10",
+    lessonId: "geometry",
+    masteryCategories: ["shapes", "challenge"],
+    label: "Geometry",
+    emoji: "📐",
+    color: "#15803D"
+  }
 ];
 
 const BONUS_CATEGORIES = new Set(["patterns", "mixed", "challenge"]);
@@ -138,10 +216,16 @@ export function getCategoryUnlockHint(categoryId, progress) {
   return null;
 }
 
-export function getPathStepStatus(progress, stepId, games) {
-  const unlocked = isLessonComplete(progress, stepId);
-  const mastered = categoryHasMinProgress(progress, stepId, LEVELS_PER_TIER, games);
-  const started = categoryHasMinProgress(progress, stepId, 1, games);
+export function getPathStepStatus(progress, step, games) {
+  const lessonId = step.lessonId || step.id;
+  const masteryCategories = step.masteryCategories || [step.id];
+  const unlocked = isLessonComplete(progress, lessonId);
+  const mastered = masteryCategories.some((categoryId) =>
+    categoryHasMinProgress(progress, categoryId, LEVELS_PER_TIER, games)
+  );
+  const started = masteryCategories.some((categoryId) =>
+    categoryHasMinProgress(progress, categoryId, 1, games)
+  );
   return { unlocked, started, mastered };
 }
 

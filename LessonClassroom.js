@@ -637,9 +637,10 @@ export default function LessonClassroom({ lesson, slide, slideIndex, slideKey, o
       stopVoiceSession();
       setHeardText("");
       voiceSessionRef.current = createVoiceAnswerSession({
-        choices: buildAnswerChoices(expected),
+        choices: [expected],
         expected,
         choiceType: "number",
+        strictExpected: true,
         onTranscript: setHeardText,
         onListeningChange: setListening,
         onResult: (answer) => handleStudentAnswerRef.current(answer),

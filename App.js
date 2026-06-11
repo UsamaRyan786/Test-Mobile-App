@@ -36,7 +36,6 @@ import {
   getTargetLabel,
   getPrompt
 } from "./games";
-import { getShapeName } from "./shapes";
 import {
   PROGRESS_KEY,
   LEVELS_PER_TIER,
@@ -69,9 +68,10 @@ import {
   saveLessonCheckpoint,
   markLessonStepComplete,
   completeLesson,
-  getCompletedLessonCount
+  getCompletedLessonCount,
+  getGameUnlockHint,
+  getLessonGameSections
 } from "./lessons";
-import { getGameUnlockHint, getLessonGameSections } from "./lessonMap";
 import { TEACHER_LABEL } from "./teacherConfig";
 
 const MAX_ROUNDS = 12;
@@ -89,8 +89,8 @@ function formatScoreLabel(correctCount) {
 }
 
 const THEME = {
-  bg: ["#C9EFFF", "#E8F5FF", "#FFF4E6"],
-  sky: "#7DD3FC",
+  bg: ["#BAE6FD", "#DDD6FE", "#FBCFE8", "#FEF9C3"],
+  sky: "#38BDF8",
   coral: "#FF6B9D",
   mint: "#4ADE80",
   gold: "#FBBF24",
@@ -98,6 +98,15 @@ const THEME = {
   text: "#1E3A5F",
   textSoft: "#5B7A9A"
 };
+
+const BG_FLOATERS = [
+  { emoji: "🔢", style: "floaterOne", delay: 0, duration: 3200 },
+  { emoji: "➕", style: "floaterTwo", delay: 400, duration: 3800 },
+  { emoji: "⭐", style: "floaterThree", delay: 800, duration: 3500 },
+  { emoji: "🌈", style: "floaterFour", delay: 200, duration: 4100 },
+  { emoji: "✖️", style: "floaterFive", delay: 600, duration: 3600 },
+  { emoji: "🎈", style: "floaterSix", delay: 1000, duration: 3900 }
+];
 
 const DOT_COLORS = ["#FBBF24", "#4ADE80", "#FF6B9D", "#60A5FA", "#A78BFA", "#FB923C"];
 const LESSON_GAME_SECTIONS = getLessonGameSections(GAMES);
@@ -285,15 +294,79 @@ function FloatingBubble({ style, delay = 0, duration = 4000 }) {
   return <Animated.View style={[style, animatedStyle]} />;
 }
 
+function FloatingEmoji({ emoji, style, delay, duration }) {
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: 1,
+          duration,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true
+        })
+      ])
+    );
+    const timer = setTimeout(() => loop.start(), delay);
+    return () => {
+      clearTimeout(timer);
+      loop.stop();
+    };
+  }, [delay, duration, floatAnim]);
+
+  const animatedStyle = {
+    transform: [
+      {
+        translateY: floatAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, -14]
+        })
+      },
+      {
+        rotate: floatAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: ["-6deg", "6deg"]
+        })
+      }
+    ],
+    opacity: floatAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0.55, 0.95, 0.55]
+    })
+  };
+
+  return (
+    <Animated.Text style={[style, animatedStyle]}>{emoji}</Animated.Text>
+  );
+}
+
 function BackgroundDecor() {
   return (
     <View style={styles.backgroundExtras} pointerEvents="none">
+      <LinearGradient
+        colors={["rgba(255,255,255,0.45)", "rgba(255,255,255,0)"]}
+        style={styles.bgSunGlow}
+      />
       <FloatingBubble style={styles.bubbleOne} delay={0} duration={3500} />
       <FloatingBubble style={styles.bubbleTwo} delay={600} duration={4200} />
       <FloatingBubble style={styles.bubbleThree} delay={300} duration={3800} />
-      <Text style={styles.decorStarOne}>⭐</Text>
-      <Text style={styles.decorStarTwo}>✨</Text>
-      <Text style={styles.decorCloud}>☁️</Text>
+      <FloatingBubble style={styles.bubbleFour} delay={900} duration={4000} />
+      <FloatingBubble style={styles.bubbleFive} delay={450} duration={3700} />
+      <View style={styles.bgRainbowArc} />
+      <View style={styles.bgHillBack} />
+      <View style={styles.bgHillFront} />
+      {BG_FLOATERS.map((item) => (
+        <FloatingEmoji key={item.emoji + item.style} {...item} style={styles[item.style]} />
+      ))}
+      <Text style={styles.decorCloudOne}>☁️</Text>
+      <Text style={styles.decorCloudTwo}>☁️</Text>
     </View>
   );
 }
@@ -900,6 +973,9 @@ function ClassCard({ lesson, progress, index, onPress }) {
           ) : null}
           <Text style={styles.classCardEmoji}>{lesson.emoji}</Text>
           <View style={styles.classCardBody}>
+            {lesson.gradeBand ? (
+              <Text style={styles.classCardGrade}>{lesson.gradeBand}</Text>
+            ) : null}
             <Text style={styles.classCardTitle}>{lesson.title}</Text>
             <Text style={styles.classCardSubtitle}>{lesson.subtitle}</Text>
             <Text style={styles.classCardMeta}>
@@ -924,11 +1000,11 @@ function LearningPathBar({ progress }) {
     <LinearGradient colors={["#ECFDF5", "#D1FAE5"]} style={styles.learningPathBar}>
       <Text style={styles.learningPathTitle}>🛤️ Your Learning Path</Text>
       <Text style={styles.learningPathSubtitle}>
-        Listen to each class · Finish the class to unlock those games only
+        Pakistani curriculum path · 10 levels from counting to geometry
       </Text>
       <View style={styles.learningPathRow}>
         {LEARNING_PATH.map((step, index) => {
-          const status = getPathStepStatus(progress, step.id, GAMES);
+          const status = getPathStepStatus(progress, step, GAMES);
           return (
             <View key={step.id} style={styles.learningPathStepWrap}>
               <View
@@ -987,7 +1063,7 @@ function AppRoot() {
   const [progress, setProgress] = useState(createDefaultProgress());
   const [selectedTier, setSelectedTier] = useState(1);
   const [selectedLevel, setSelectedLevel] = useState(1);
-  const [selectedLesson, setSelectedLesson] = useState(LESSONS[1]);
+  const [selectedLesson, setSelectedLesson] = useState(LESSONS[0]);
   const [lessonSlide, setLessonSlide] = useState(0);
   const [lessonSlideKey, setLessonSlideKey] = useState(0);
   const [lessonFinished, setLessonFinished] = useState(false);
@@ -1192,23 +1268,16 @@ function AppRoot() {
       return;
     }
 
-    const lesson = selectedLesson;
-    const savedSlide = getLessonProgress(currentProgress, selectedLesson.id).slide ?? 0;
     const activeSlide = lessonSlideRef.current;
     const speechDone = slideSpeechCompleteRef.current;
-    let resumeSlide = Math.max(savedSlide, activeSlide);
+    const saved = getLessonProgress(currentProgress, selectedLesson.id);
+    const resumeSlide = Math.min(activeSlide, saved.slide ?? activeSlide);
 
-    if (speechDone) {
-      resumeSlide = Math.max(resumeSlide, Math.min(activeSlide + 1, lesson.slides.length - 1));
-    }
-
-    resumeSlide = Math.min(resumeSlide, lesson.slides.length - 1);
-
-    if (savedSlide === resumeSlide) {
+    if (saved.slide === resumeSlide && Boolean(saved.speechReady) === speechDone) {
       return;
     }
 
-    const updated = saveLessonCheckpoint(currentProgress, selectedLesson.id, resumeSlide);
+    const updated = saveLessonCheckpoint(currentProgress, selectedLesson.id, resumeSlide, speechDone);
     setProgress(updated);
     progressRef.current = updated;
     saveProgressData(updated);
@@ -1217,29 +1286,7 @@ function AppRoot() {
   const onSlideSpeechProgress = useCallback((complete) => {
     setSlideSpeechComplete(complete);
     slideSpeechCompleteRef.current = complete;
-
-    if (!complete || lessonReplay || lessonFinished || !selectedLesson) {
-      return;
-    }
-
-    const currentProgress = progressRef.current;
-    if (isLessonComplete(currentProgress, selectedLesson.id)) {
-      return;
-    }
-
-    const activeSlide = lessonSlideRef.current;
-    const resumeAt = Math.min(activeSlide + 1, selectedLesson.slides.length - 1);
-    const savedSlide = getLessonProgress(currentProgress, selectedLesson.id).slide ?? 0;
-
-    if (resumeAt <= savedSlide) {
-      return;
-    }
-
-    const updated = saveLessonCheckpoint(currentProgress, selectedLesson.id, resumeAt);
-    setProgress(updated);
-    progressRef.current = updated;
-    saveProgressData(updated);
-  }, [lessonReplay, lessonFinished, selectedLesson]);
+  }, []);
 
   function leaveLessonForClasses() {
     persistLessonCheckpoint();
@@ -1294,11 +1341,14 @@ function AppRoot() {
     stopClassroomSpeech();
     setSelectedLesson(lesson);
     const completed = isLessonComplete(progress, lesson.id);
+    const lessonProgress = getLessonProgress(progress, lesson.id);
+    const resumeSlide = completed ? 0 : getResumeSlideIndex(progress, lesson.id);
     setLessonReplay(completed);
-    setLessonSlide(completed ? 0 : getResumeSlideIndex(progress, lesson.id));
+    setLessonSlide(resumeSlide);
     setLessonSlideKey((key) => key + 1);
     setLessonFinished(false);
-    setSlideSpeechComplete(false);
+    setSlideSpeechComplete(!completed && Boolean(lessonProgress.speechReady));
+    slideSpeechCompleteRef.current = !completed && Boolean(lessonProgress.speechReady);
     setScreen("lesson");
   }
 
@@ -1310,6 +1360,11 @@ function AppRoot() {
     const lesson = selectedLesson;
     const isLast = lessonSlide >= lesson.slides.length - 1;
     const replaying = lessonReplay || isLessonComplete(progress, lesson.id);
+    const unlockedSlide = getLessonProgress(progressRef.current, lesson.id).slide ?? 0;
+
+    if (!replaying && lessonSlide > unlockedSlide) {
+      return;
+    }
 
     if (isLast) {
       if (!replaying) {
@@ -1424,8 +1479,7 @@ function AppRoot() {
 
     setSelected(number);
     setScore(nextScore);
-    const answerLabel =
-      roundData.choiceType === "shapeName" ? getShapeName(roundData.target) : String(roundData.target);
+    const answerLabel = formatChoiceLabel(roundData, roundData.target);
     setMessage(isCorrect ? "🎉 Awesome! You got it!" : `💪 Almost! The answer is ${answerLabel}.`);
     pulseMessage();
 
@@ -1485,8 +1539,8 @@ function AppRoot() {
             <View style={styles.classesPromoCopy}>
               <Text style={styles.classesPromoTitle}>📚 Math Classes</Text>
               <Text style={styles.classesPromoText}>
-                {TEACHER_LABEL} speaks and draws on the whiteboard! {getCompletedLessonCount(progress)}/
-                {LESSONS.length} classes done.
+                {TEACHER_LABEL} follows the Pakistani curriculum! {getCompletedLessonCount(progress)}/
+                {LESSONS.length} classes done — Pre-Primary to Grade 8.
               </Text>
             </View>
             <Pressable
@@ -1969,7 +2023,7 @@ function AppRoot() {
             </Pressable>
             <View style={styles.gameTitleCopy}>
               <Text style={styles.gameTitle}>📚 Math Classes</Text>
-              <Text style={styles.gameLevelBand}>Learn first, then play games!</Text>
+              <Text style={styles.gameLevelBand}>Pre-Primary → Grade 8 · listen first, then play!</Text>
             </View>
           </View>
 
@@ -2026,16 +2080,24 @@ function AppRoot() {
           </View>
 
           <View style={styles.lessonProgressRow}>
-            {lesson.slides.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.lessonProgressDot,
-                  index <= lessonSlide && styles.lessonProgressDotActive,
-                  index === lessonSlide && styles.lessonProgressDotCurrent
-                ]}
-              />
-            ))}
+            {lesson.slides.map((_, index) => {
+              const unlockedSlide = lessonReplay
+                ? lesson.slides.length - 1
+                : getLessonProgress(progress, lesson.id).slide ?? 0;
+              const stepDone = lessonReplay || index < unlockedSlide || (index === unlockedSlide && slideSpeechComplete);
+
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.lessonProgressDot,
+                    stepDone && styles.lessonProgressDotActive,
+                    index === lessonSlide && styles.lessonProgressDotCurrent,
+                    index > unlockedSlide && styles.lessonProgressDotLocked
+                  ]}
+                />
+              );
+            })}
           </View>
 
           <LinearGradient colors={["#FFFFFF", "#FFFBEB"]} style={styles.lessonPanel}>
@@ -2224,12 +2286,20 @@ const styles = StyleSheet.create({
     zIndex: 0,
     overflow: "hidden"
   },
+  bgSunGlow: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    top: -40,
+    right: -30
+  },
   bubbleOne: {
     position: "absolute",
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: "rgba(251, 191, 36, 0.3)",
+    backgroundColor: "rgba(251, 191, 36, 0.38)",
     top: -60,
     left: -50
   },
@@ -2238,7 +2308,7 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: "rgba(74, 222, 128, 0.25)",
+    backgroundColor: "rgba(74, 222, 128, 0.32)",
     top: 140,
     right: -60
   },
@@ -2247,30 +2317,80 @@ const styles = StyleSheet.create({
     width: 260,
     height: 260,
     borderRadius: 130,
-    backgroundColor: "rgba(96, 165, 250, 0.2)",
+    backgroundColor: "rgba(167, 139, 250, 0.28)",
     bottom: -100,
     left: 20
   },
-  decorStarOne: {
+  bubbleFour: {
     position: "absolute",
-    top: 90,
-    right: 30,
-    fontSize: 28,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(244, 114, 182, 0.3)",
+    top: 280,
+    left: -20
+  },
+  bubbleFive: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(56, 189, 248, 0.28)",
+    bottom: 120,
+    right: -30
+  },
+  bgRainbowArc: {
+    position: "absolute",
+    width: 320,
+    height: 160,
+    borderTopLeftRadius: 160,
+    borderTopRightRadius: 160,
+    borderWidth: 14,
+    borderBottomWidth: 0,
+    borderColor: "rgba(255,255,255,0.35)",
+    top: 40,
+    left: "18%",
     opacity: 0.7
   },
-  decorStarTwo: {
+  bgHillBack: {
     position: "absolute",
-    bottom: 180,
-    right: 50,
-    fontSize: 22,
-    opacity: 0.6
+    width: "130%",
+    height: 120,
+    borderTopLeftRadius: 200,
+    borderTopRightRadius: 200,
+    backgroundColor: "rgba(74, 222, 128, 0.22)",
+    bottom: -20,
+    left: "-15%"
   },
-  decorCloud: {
+  bgHillFront: {
+    position: "absolute",
+    width: "120%",
+    height: 90,
+    borderTopLeftRadius: 180,
+    borderTopRightRadius: 180,
+    backgroundColor: "rgba(134, 239, 172, 0.35)",
+    bottom: -35,
+    right: "-10%"
+  },
+  floaterOne: { position: "absolute", top: 120, left: 24, fontSize: 30 },
+  floaterTwo: { position: "absolute", top: 210, right: 36, fontSize: 28 },
+  floaterThree: { position: "absolute", top: 70, right: 90, fontSize: 26 },
+  floaterFour: { position: "absolute", bottom: 150, left: 40, fontSize: 32 },
+  floaterFive: { position: "absolute", bottom: 220, right: 28, fontSize: 24 },
+  floaterSix: { position: "absolute", top: 300, left: "42%", fontSize: 30 },
+  decorCloudOne: {
     position: "absolute",
     top: 50,
     left: 40,
     fontSize: 36,
-    opacity: 0.5
+    opacity: 0.55
+  },
+  decorCloudTwo: {
+    position: "absolute",
+    top: 88,
+    right: 52,
+    fontSize: 28,
+    opacity: 0.45
   },
   screen: {
     flexGrow: 1,
@@ -2575,6 +2695,14 @@ const styles = StyleSheet.create({
   classCardBody: {
     flex: 1
   },
+  classCardGrade: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    marginBottom: 2
+  },
   classCardTitle: {
     color: "#FFFFFF",
     fontSize: 16,
@@ -2610,6 +2738,10 @@ const styles = StyleSheet.create({
   lessonProgressDotCurrent: {
     width: 22,
     backgroundColor: "#3B82F6"
+  },
+  lessonProgressDotLocked: {
+    backgroundColor: "#CBD5E1",
+    opacity: 0.55
   },
   lessonPanel: {
     padding: 14,

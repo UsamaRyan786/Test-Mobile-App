@@ -1,4 +1,4 @@
-import { attachLessonIds } from "./lessonMap";
+import { attachLessonIds } from "./lessons";
 import { BASIC_SHAPES, getShapeName } from "./shapes";
 
 const MIN_NUMBER = 1;
@@ -301,22 +301,24 @@ function buildBeforeAfterRound(config = {}) {
     return {
       label: `Before ${n} comes ?`,
       target: n - 1,
-      choices: makeChoicesFromRange(n - 1, 1, 10)
+      choices: makeChoicesFromRange(n - 1, 1, Math.max(10, n))
     };
   }
   if (mode === "after") {
     return {
       label: `After ${n} comes ?`,
       target: n + 1,
-      choices: makeChoicesFromRange(n + 1, 1, 12)
+      choices: makeChoicesFromRange(n + 1, 1, Math.max(12, n + 2))
     };
   }
   if (mode === "between") {
-    const low = randomInt(2, 8);
+    const lowMin = config.min ?? 2;
+    const lowMax = config.max ?? 8;
+    const low = randomInt(lowMin, lowMax);
     return {
       label: `Between ${low} and ${low + 2} ?`,
       target: low + 1,
-      choices: makeChoicesFromRange(low + 1, 1, 10)
+      choices: makeChoicesFromRange(low + 1, 1, Math.max(12, low + 3))
     };
   }
 
@@ -548,6 +550,1032 @@ function buildBodmasRound(config = {}) {
   };
 }
 
+/** Extra round builders & games for Pakistani curriculum classes. */
+
+const NUMBER_WORDS = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten"
+];
+
+const STORY_NAMES = ["Ali", "Sara", "Ahmed", "Fatima", "Hassan", "Ayesha"];
+const STORY_ITEMS = ["apples", "mangoes", "books", "stickers", "biscuits", "balloons"];
+
+function buildNumberWordRound(config = {}) {
+  const min = config.min ?? 0;
+  const max = config.max ?? 10;
+  const target = randomInt(min, max);
+  return {
+    label: NUMBER_WORDS[target],
+    target,
+    choices: makeChoicesFromRange(target, min, max)
+  };
+}
+
+function buildTimeHourRound(config = {}) {
+  const hour = randomInt(config.min ?? 1, config.max ?? 12);
+  const halfPast = config.halfPast;
+  const label = halfPast ? `🕧 ${hour}:30` : `🕐 ${hour} o'clock`;
+  return {
+    label,
+    target: hour,
+    choices: makeChoicesFromRange(hour, 1, 12)
+  };
+}
+
+function buildMoneyAddRound(config = {}) {
+  const a = randomInt(config.aMin ?? 1, config.aMax ?? 10);
+  const b = randomInt(config.bMin ?? 1, config.bMax ?? 10);
+  const target = a + b;
+  return {
+    label: `Rs. ${a} + Rs. ${b}`,
+    target,
+    choices: makeChoicesFromRange(target, config.choiceMin ?? 2, config.choiceMax ?? 20)
+  };
+}
+
+function buildQuarterRound(config = {}) {
+  const n = randomInt(config.min ?? 1, config.max ?? 8) * 4;
+  const target = n / 4;
+  return {
+    label: `Quarter of ${n}`,
+    target,
+    choices: makeChoicesFromRange(target, 1, config.choiceMax ?? 12)
+  };
+}
+
+function buildDecimalTenthsRound(config = {}) {
+  const a = randomInt(1, 8);
+  const b = randomInt(1, Math.min(9 - a, 8));
+  const targetTenths = a + b;
+  return {
+    label: `0.${a} + 0.${b}`,
+    target: targetTenths,
+    choices: makeChoicesFromRange(targetTenths, 2, 18),
+    choiceType: "decimalTenth"
+  };
+}
+
+function buildDecimalCompareRound(config = {}) {
+  const max = config.max ?? 9;
+  const a = randomInt(1, max);
+  let b = randomInt(1, max);
+  while (b === a) {
+    b = randomInt(1, max);
+  }
+  const pickMax = config.pick !== "min";
+  const target = pickMax ? Math.max(a, b) : Math.min(a, b);
+  return {
+    label: `0.${a}  vs  0.${b}`,
+    target,
+    choices: makeChoicesFromRange(target, 1, max),
+    choiceType: "decimalTenth"
+  };
+}
+
+function buildPercentOfRound(config = {}) {
+  const percents = config.percents ?? [10, 25, 50];
+  const pct = percents[randomInt(0, percents.length - 1)];
+  const multiplier = 100 / pct;
+  const base = randomInt(1, Math.min(10, config.baseMax ?? 10)) * multiplier;
+  const target = (base * pct) / 100;
+  return {
+    label: `${pct}% of ${base}`,
+    target,
+    choices: makeChoicesFromRange(target, 1, config.choiceMax ?? 50)
+  };
+}
+
+function buildAlgebraRound(config = {}) {
+  const add = randomInt(config.addMin ?? 1, config.addMax ?? 9);
+  const x = randomInt(config.xMin ?? 1, config.xMax ?? 12);
+  const total = x + add;
+  return {
+    label: `x + ${add} = ${total}`,
+    target: x,
+    choices: makeChoicesFromRange(x, 1, config.choiceMax ?? 15),
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false
+  };
+}
+
+function buildPerimeterRound(config = {}) {
+  const shape = config.shape ?? (randomInt(0, 1) === 0 ? "square" : "rectangle");
+  if (shape === "rectangle") {
+    const length = randomInt(2, 8);
+    const width = randomInt(2, 6);
+    const target = 2 * (length + width);
+    return {
+      label: `Rectangle ${length} cm × ${width} cm — perimeter?`,
+      target,
+      choices: makeChoicesFromRange(target, 8, config.choiceMax ?? 40)
+    };
+  }
+  const side = randomInt(2, 9);
+  const target = side * 4;
+  return {
+    label: `Square side ${side} cm — perimeter?`,
+    target,
+    choices: makeChoicesFromRange(target, 8, config.choiceMax ?? 40)
+  };
+}
+
+function buildWordProblemRound(config = {}) {
+  const op = config.op ?? "add";
+  const name = STORY_NAMES[randomInt(0, STORY_NAMES.length - 1)];
+  const item = STORY_ITEMS[randomInt(0, STORY_ITEMS.length - 1)];
+
+  if (op === "sub") {
+    const b = randomInt(1, 5);
+    const a = randomInt(b + 1, 12);
+    const target = a - b;
+    return {
+      label: `${name} had ${a} ${item} and ate ${b}. How many left?`,
+      target,
+      choices: makeChoicesFromRange(target, 0, config.choiceMax ?? 15)
+    };
+  }
+
+  const a = randomInt(1, config.aMax ?? 8);
+  const b = randomInt(1, config.bMax ?? 8);
+  const target = a + b;
+  return {
+    label: `${name} has ${a} ${item} and gets ${b} more. How many altogether?`,
+    target,
+    choices: makeChoicesFromRange(target, 2, config.choiceMax ?? 20)
+  };
+}
+
+/** Games with lessonId set — mapped directly to Pakistani curriculum classes. */
+const CURRICULUM_GAME_DEFS = [
+  // counting
+  {
+    id: "countStars",
+    lessonId: "counting",
+    category: "counting",
+    title: "Star Counter",
+    description: "Count the twinkling stars from 1 to 10!",
+    emoji: "⭐",
+    roundType: "dots",
+    display: "dots",
+    showEquals: false,
+    config: { min: 1, max: 10 },
+    instruction: "Count the stars!",
+    targetLabel: "⭐ Count the stars",
+    prompt: "How many stars?"
+  },
+  {
+    id: "countFlowers",
+    lessonId: "counting",
+    category: "counting",
+    title: "Flower Field",
+    description: "Count flowers in the garden!",
+    emoji: "🌸",
+    roundType: "dots",
+    display: "dots",
+    showEquals: false,
+    config: { min: 2, max: 8 },
+    instruction: "Count each flower!",
+    targetLabel: "🌸 Count the flowers",
+    prompt: "How many flowers?"
+  },
+  // count20
+  {
+    id: "dotsTeens",
+    lessonId: "count20",
+    category: "counting",
+    title: "Teen Dot Trail",
+    description: "Count dots from 6 up to 20!",
+    emoji: "🎈",
+    roundType: "dots",
+    display: "dots",
+    showEquals: false,
+    config: { min: 6, max: 20 },
+    instruction: "Count all the dots!",
+    targetLabel: "🎈 Count the teen dots",
+    prompt: "How many dots?"
+  },
+  {
+    id: "skipBy2Early",
+    lessonId: "count20",
+    category: "patterns",
+    title: "Count by Twos",
+    description: "2, 4, 6, 8 — what comes next?",
+    emoji: "🐸",
+    roundType: "sequence",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { step: 2, startMin: 2, startMax: 6, choiceMax: 24 },
+    instruction: "Skip count by twos!",
+    targetLabel: "2️⃣ Count by 2s",
+    prompt: "What number comes next?"
+  },
+  // count100
+  {
+    id: "dotsMassive",
+    lessonId: "count100",
+    category: "counting",
+    title: "Mega Dot Meadow",
+    description: "Count big groups up to 25!",
+    emoji: "🌻",
+    roundType: "dots",
+    display: "dots",
+    showEquals: false,
+    config: { min: 10, max: 25 },
+    instruction: "Count carefully!",
+    targetLabel: "🌻 Count the big group",
+    prompt: "How many dots?"
+  },
+  {
+    id: "skipBy20",
+    lessonId: "count100",
+    category: "patterns",
+    title: "Jump by 20s",
+    description: "20, 40, 60 — keep counting!",
+    emoji: "🏃",
+    roundType: "sequence",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { step: 20, startMin: 20, startMax: 40, choiceMax: 100 },
+    instruction: "What comes next?",
+    targetLabel: "🏃 Skip by 20s",
+    prompt: "What number comes next?"
+  },
+  // numbers
+  {
+    id: "numberWord",
+    lessonId: "numbers",
+    category: "counting",
+    title: "Number Word Match",
+    description: "Hear the word — pick the number!",
+    emoji: "🔤",
+    roundType: "numberWord",
+    display: "word",
+    showEquals: false,
+    config: { min: 0, max: 10 },
+    instruction: "Pick the matching number!",
+    targetLabel: "🔤 Word to number",
+    prompt: "Which number matches the word?"
+  },
+  {
+    id: "zeroHero",
+    lessonId: "numbers",
+    category: "counting",
+    title: "Zero Hero",
+    description: "Learn that zero means nothing!",
+    emoji: "0️⃣",
+    roundType: "dots",
+    display: "dots",
+    showEquals: false,
+    config: { min: 0, max: 0 },
+    instruction: "How many dots?",
+    targetLabel: "0️⃣ Count zero",
+    prompt: "How many dots do you see?"
+  },
+  {
+    id: "tenPerfect",
+    lessonId: "numbers",
+    category: "counting",
+    title: "Perfect Ten",
+    description: "Spot exactly ten objects!",
+    emoji: "🔟",
+    roundType: "dots",
+    display: "dots",
+    showEquals: false,
+    config: { min: 10, max: 10 },
+    instruction: "Count to ten!",
+    targetLabel: "🔟 Ten objects",
+    prompt: "How many are there?"
+  },
+  // numberLine
+  {
+    id: "afterTeen",
+    lessonId: "numberLine",
+    category: "patterns",
+    title: "After Teens",
+    description: "What comes after teen numbers?",
+    emoji: "➡️",
+    roundType: "beforeAfter",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { mode: "after", min: 11, max: 19 },
+    instruction: "Pick the number after!",
+    targetLabel: "➡️ What comes after?",
+    prompt: "Choose the correct number!"
+  },
+  {
+    id: "betweenTeens",
+    lessonId: "numberLine",
+    category: "patterns",
+    title: "Between Teens",
+    description: "Find the number in the middle!",
+    emoji: "🎯",
+    roundType: "beforeAfter",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { mode: "between", min: 11, max: 17 },
+    instruction: "What sits in between?",
+    targetLabel: "🎯 Between which numbers?",
+    prompt: "Pick the middle number!"
+  },
+  // compare
+  {
+    id: "compareTiny",
+    lessonId: "compare",
+    category: "compare",
+    title: "Tiny Compare",
+    description: "Compare numbers 1 to 5!",
+    emoji: "🐣",
+    roundType: "compare",
+    display: "compare",
+    wideText: true,
+    showEquals: false,
+    config: { max: 5 },
+    instruction: "Which is bigger?",
+    targetLabel: "🐣 Compare small numbers",
+    prompt: "Tap the bigger number!"
+  },
+  {
+    id: "compareTeens",
+    lessonId: "compare",
+    category: "compare",
+    title: "Teen Compare",
+    description: "Compare numbers up to 20!",
+    emoji: "⚖️",
+    roundType: "compare",
+    display: "compare",
+    wideText: true,
+    showEquals: false,
+    config: { max: 20 },
+    instruction: "Which is bigger?",
+    targetLabel: "⚖️ Compare teen numbers",
+    prompt: "Tap the bigger number!"
+  },
+  // evenOdd
+  {
+    id: "evenPairs",
+    lessonId: "evenOdd",
+    category: "evenOdd",
+    title: "Even Pairs",
+    description: "Find numbers that split into pairs!",
+    emoji: "👫",
+    roundType: "parity",
+    display: "word",
+    showEquals: false,
+    config: { parity: "even" },
+    instruction: "Pick an even number!",
+    targetLabel: "👫 Even pairs",
+    prompt: "Which number is even?"
+  },
+  {
+    id: "oddTrail",
+    lessonId: "evenOdd",
+    category: "evenOdd",
+    title: "Odd Trail",
+    description: "Spot the odd numbers!",
+    emoji: "🦉",
+    roundType: "parity",
+    display: "word",
+    showEquals: false,
+    config: { parity: "odd" },
+    instruction: "Pick an odd number!",
+    targetLabel: "🦉 Odd numbers",
+    prompt: "Which number is odd?"
+  },
+  // shapes
+  {
+    id: "roundShapes",
+    lessonId: "shapes",
+    category: "shapes",
+    title: "Round Shape Hunt",
+    description: "Name circles, ovals, and hearts!",
+    emoji: "⭕",
+    roundType: "shapeName",
+    display: "shape",
+    showEquals: false,
+    config: { shapes: BASIC_SHAPES.filter((shape) => shape.group === "round") },
+    instruction: "What round shape is this?",
+    targetLabel: "⭕ Round shapes",
+    prompt: "Tap the shape name!"
+  },
+  {
+    id: "cornerShapes",
+    lessonId: "shapes",
+    category: "shapes",
+    title: "Corner Counter",
+    description: "Shapes with straight sides and corners!",
+    emoji: "🟧",
+    roundType: "shapeSides",
+    display: "shape",
+    showEquals: false,
+    config: { shapes: BASIC_SHAPES.filter((shape) => shape.group === "corners" && shape.sides >= 3) },
+    instruction: "How many sides?",
+    targetLabel: "🟧 Count corners",
+    prompt: "How many sides?"
+  },
+  // patternsIntro
+  {
+    id: "patternOnes",
+    lessonId: "patternsIntro",
+    category: "patterns",
+    title: "One Step Pattern",
+    description: "1, 2, 3, 4 — what comes next?",
+    emoji: "1️⃣",
+    roundType: "sequence",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { step: 1, startMin: 1, startMax: 5, choiceMax: 12 },
+    instruction: "Complete the pattern!",
+    targetLabel: "1️⃣ Simple pattern",
+    prompt: "What comes next?"
+  },
+  {
+    id: "patternTwos",
+    lessonId: "patternsIntro",
+    category: "patterns",
+    title: "Two Step Pattern",
+    description: "Patterns that jump by 2!",
+    emoji: "2️⃣",
+    roundType: "sequence",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { step: 2, startMin: 2, startMax: 4, choiceMax: 16 },
+    instruction: "Spot the pattern!",
+    targetLabel: "2️⃣ Jump by 2",
+    prompt: "What comes next?"
+  },
+  // addition
+  {
+    id: "addWithin20",
+    lessonId: "addition",
+    category: "addition",
+    title: "Add to Twenty",
+    description: "Addition within 20 — Grade 1 style!",
+    emoji: "📚",
+    roundType: "addition",
+    config: { aMax: 10, bMax: 10, choiceMax: 20 },
+    instruction: "Add the numbers!",
+    targetLabel: "📚 Add within 20",
+    prompt: "What's the sum?"
+  },
+  {
+    id: "addStory",
+    lessonId: "addition",
+    category: "addition",
+    title: "Story Sums",
+    description: "Solve addition word stories!",
+    emoji: "📖",
+    roundType: "wordProblem",
+    config: { op: "add", aMax: 8, bMax: 8, choiceMax: 16 },
+    instruction: "Listen to the story!",
+    targetLabel: "📖 Word problem",
+    prompt: "How many altogether?"
+  },
+  // numberBonds
+  {
+    id: "makeFifteen",
+    lessonId: "numberBonds",
+    category: "addition",
+    title: "Make Fifteen",
+    description: "Find the missing number to make 15!",
+    emoji: "🖐️",
+    roundType: "makeTotal",
+    display: "sequence",
+    sequenceText: true,
+    config: { total: 15 },
+    instruction: "Make fifteen!",
+    targetLabel: "🖐️ Make 15",
+    prompt: "What number is missing?"
+  },
+  // subtraction
+  {
+    id: "subOneLess",
+    lessonId: "subtraction",
+    category: "subtraction",
+    title: "One Less",
+    description: "Subtract 1 from any number!",
+    emoji: "⬇️",
+    roundType: "subtraction",
+    config: { bMin: 1, bMax: 1, aMin: 2, aMax: 15 },
+    instruction: "Take away one!",
+    targetLabel: "⬇️ One less",
+    prompt: "What's left?"
+  },
+  {
+    id: "subWithin20",
+    lessonId: "subtraction",
+    category: "subtraction",
+    title: "Subtract to Twenty",
+    description: "Subtraction within 20!",
+    emoji: "📕",
+    roundType: "subtraction",
+    config: { aMin: 5, aMax: 20, bMin: 1, bMax: 9, choiceMax: 20 },
+    instruction: "Subtract!",
+    targetLabel: "📕 Within 20",
+    prompt: "What's the difference?"
+  },
+  // timeBasics
+  {
+    id: "clockHour",
+    lessonId: "timeBasics",
+    category: "patterns",
+    title: "O'Clock Quiz",
+    description: "Read the hour on the clock!",
+    emoji: "🕐",
+    roundType: "timeHour",
+    display: "word",
+    showEquals: false,
+    config: { min: 1, max: 12 },
+    instruction: "What hour is it?",
+    targetLabel: "🕐 Read the clock",
+    prompt: "What hour do you see?"
+  },
+  {
+    id: "halfPast",
+    lessonId: "timeBasics",
+    category: "patterns",
+    title: "Half Past",
+    description: "Learn half-past times!",
+    emoji: "🕧",
+    roundType: "timeHour",
+    display: "word",
+    showEquals: false,
+    config: { min: 1, max: 12, halfPast: true },
+    instruction: "What hour is half past?",
+    targetLabel: "🕧 Half past",
+    prompt: "Which hour is shown?"
+  },
+  // money
+  {
+    id: "coinCount",
+    lessonId: "money",
+    category: "counting",
+    title: "Coin Counter",
+    description: "Count Pakistani rupee coins!",
+    emoji: "🪙",
+    roundType: "dots",
+    display: "dots",
+    showEquals: false,
+    config: { min: 1, max: 10 },
+    instruction: "Count the coins!",
+    targetLabel: "🪙 Count the coins",
+    prompt: "How many coins?"
+  },
+  {
+    id: "rupeeAdd",
+    lessonId: "money",
+    category: "addition",
+    title: "Rupee Shop",
+    description: "Add rupee amounts together!",
+    emoji: "🇵🇰",
+    roundType: "moneyAdd",
+    config: { aMax: 10, bMax: 10, choiceMax: 20 },
+    instruction: "Add the rupees!",
+    targetLabel: "🇵🇰 Rs. addition",
+    prompt: "What's the total in rupees?"
+  },
+  // measure
+  {
+    id: "measureCompare",
+    lessonId: "measure",
+    category: "compare",
+    title: "Long or Short",
+    description: "Compare bigger measurements!",
+    emoji: "📏",
+    roundType: "compare",
+    display: "compare",
+    wideText: true,
+    showEquals: false,
+    config: { max: 30 },
+    instruction: "Which is longer (bigger)?",
+    targetLabel: "📏 Compare lengths",
+    prompt: "Tap the bigger number!"
+  },
+  {
+    id: "lengthAdd",
+    lessonId: "measure",
+    category: "addition",
+    title: "Length Add",
+    description: "Add two lengths in centimetres!",
+    emoji: "📐",
+    roundType: "addition",
+    config: { aMax: 15, bMax: 15, choiceMax: 30 },
+    instruction: "Add the lengths!",
+    targetLabel: "📐 cm addition",
+    prompt: "What's the total length?"
+  },
+  // multiplication
+  {
+    id: "mulIntro",
+    lessonId: "multiplication",
+    category: "multiplication",
+    title: "Groups of Two",
+    description: "Small multiplication intro!",
+    emoji: "🥚",
+    roundType: "multiplication",
+    config: { aMax: 3, bMax: 3, choiceMax: 9 },
+    instruction: "Multiply!",
+    targetLabel: "🥚 Small groups",
+    prompt: "What's the product?"
+  },
+  {
+    id: "skipAfterMul",
+    lessonId: "multiplication",
+    category: "patterns",
+    title: "Skip Count Link",
+    description: "Skip counting helps times tables!",
+    emoji: "🔗",
+    roundType: "sequence",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { step: 3, startMin: 3, startMax: 6, choiceMax: 24 },
+    instruction: "What comes next?",
+    targetLabel: "🔗 Skip ×3",
+    prompt: "What number comes next?"
+  },
+  // division
+  {
+    id: "divShare3",
+    lessonId: "division",
+    category: "division",
+    title: "Share Three Ways",
+    description: "Share equally among 3 friends!",
+    emoji: "🍪",
+    roundType: "division",
+    config: { divMin: 3, divMax: 3, qMin: 2, qMax: 5 },
+    instruction: "How many each?",
+    targetLabel: "🍪 Share by 3",
+    prompt: "How many in each group?"
+  },
+  {
+    id: "divShare4",
+    lessonId: "division",
+    category: "division",
+    title: "Share Four Ways",
+    description: "Divide into 4 equal groups!",
+    emoji: "🧁",
+    roundType: "division",
+    config: { divMin: 4, divMax: 4, qMin: 2, qMax: 5 },
+    instruction: "Share equally!",
+    targetLabel: "🧁 Share by 4",
+    prompt: "How many in each group?"
+  },
+  // fractions
+  {
+    id: "quarterPie",
+    lessonId: "fractions",
+    category: "division",
+    title: "Quarter Pie",
+    description: "Find one quarter of a number!",
+    emoji: "🥧",
+    roundType: "quarter",
+    instruction: "Find the quarter!",
+    targetLabel: "🥧 Quarter of",
+    prompt: "What is one quarter?"
+  },
+  {
+    id: "halfQuick",
+    lessonId: "fractions",
+    category: "division",
+    title: "Quick Halves",
+    description: "Fast half-of practice!",
+    emoji: "🌙",
+    roundType: "half",
+    config: { min: 2, max: 20 },
+    instruction: "Find half!",
+    targetLabel: "🌙 Half of",
+    prompt: "What is half?"
+  },
+  // timesTables — table 10–12 added in games.js TABLE_GAMES
+  {
+    id: "tableChamp",
+    lessonId: "timesTables",
+    category: "multiplication",
+    title: "Table Champion",
+    description: "Harder tables up to 12!",
+    emoji: "🏆",
+    roundType: "multiplication",
+    config: { aMax: 12, bMax: 12, choiceMax: 144 },
+    instruction: "Solve the table!",
+    targetLabel: "🏆 × up to 12",
+    prompt: "What's the product?"
+  },
+  // patterns
+  {
+    id: "skipBy4",
+    lessonId: "patterns",
+    category: "patterns",
+    title: "Step by 4",
+    description: "Patterns jumping by 4!",
+    emoji: "4️⃣",
+    roundType: "sequence",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { step: 4, startMin: 4, startMax: 8, choiceMax: 32 },
+    instruction: "What comes next?",
+    targetLabel: "4️⃣ Skip by 4",
+    prompt: "What number comes next?"
+  },
+  {
+    id: "patternMix",
+    lessonId: "patterns",
+    category: "patterns",
+    title: "Pattern Mix",
+    description: "Tricky growing patterns!",
+    emoji: "🌀",
+    roundType: "sequence",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { stepMin: 2, stepMax: 5, choiceMax: 30 },
+    instruction: "Spot the rule!",
+    targetLabel: "🌀 Growing pattern",
+    prompt: "What comes next?"
+  },
+  // decimals
+  {
+    id: "decimalAdd",
+    lessonId: "decimals",
+    category: "mixed",
+    title: "Tenths Add",
+    description: "Add decimal tenths like 0.2 + 0.3!",
+    emoji: "🔢",
+    roundType: "decimalTenths",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    instruction: "Add the tenths!",
+    targetLabel: "🔢 Add tenths",
+    prompt: "What is the sum?"
+  },
+  {
+    id: "decimalCompare",
+    lessonId: "decimals",
+    category: "compare",
+    title: "Decimal Compare",
+    description: "Which decimal is bigger?",
+    emoji: "⚖️",
+    roundType: "decimalCompare",
+    display: "compare",
+    wideText: true,
+    showEquals: false,
+    instruction: "Compare decimals!",
+    targetLabel: "⚖️ Compare decimals",
+    prompt: "Which is bigger?"
+  },
+  // percentage
+  {
+    id: "percentFifty",
+    lessonId: "percentage",
+    category: "mixed",
+    title: "Fifty Percent",
+    description: "Find 50% — that's half!",
+    emoji: "💯",
+    roundType: "percentOf",
+    config: { percents: [50] },
+    instruction: "Find 50%!",
+    targetLabel: "💯 50 percent",
+    prompt: "What is 50%?"
+  },
+  {
+    id: "percentTen",
+    lessonId: "percentage",
+    category: "mixed",
+    title: "Ten Percent",
+    description: "Find 10% of a number!",
+    emoji: "🔟",
+    roundType: "percentOf",
+    config: { percents: [10, 25] },
+    instruction: "Find the percent!",
+    targetLabel: "🔟 Percent of",
+    prompt: "What is the answer?"
+  },
+  // algebraBasics
+  {
+    id: "findX",
+    lessonId: "algebraBasics",
+    category: "mixed",
+    title: "Find x",
+    description: "Solve simple algebra equations!",
+    emoji: "🔤",
+    roundType: "algebra",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { addMin: 1, addMax: 8, xMin: 1, xMax: 10 },
+    instruction: "What is x?",
+    targetLabel: "🔤 Find x",
+    prompt: "What number is x?"
+  },
+  {
+    id: "solveX",
+    lessonId: "algebraBasics",
+    category: "mixed",
+    title: "Equation Balance",
+    description: "Harder x + a = b problems!",
+    emoji: "⚖️",
+    roundType: "algebra",
+    display: "sequence",
+    sequenceText: true,
+    showEquals: false,
+    config: { addMin: 3, addMax: 12, xMin: 2, xMax: 15, choiceMax: 20 },
+    instruction: "Balance the equation!",
+    targetLabel: "⚖️ Solve for x",
+    prompt: "What is x?"
+  },
+  // geometry
+  {
+    id: "squarePerimeter",
+    lessonId: "geometry",
+    category: "mixed",
+    title: "Square Perimeter",
+    description: "Add all four sides of a square!",
+    emoji: "🟧",
+    roundType: "perimeter",
+    config: { shape: "square" },
+    instruction: "Find the perimeter!",
+    targetLabel: "🟧 Square perimeter",
+    prompt: "What is the perimeter?"
+  },
+  {
+    id: "rectPerimeter",
+    lessonId: "geometry",
+    category: "mixed",
+    title: "Rectangle Perimeter",
+    description: "Perimeter of rectangles!",
+    emoji: "🟦",
+    roundType: "perimeter",
+    config: { shape: "rectangle" },
+    instruction: "Add all the sides!",
+    targetLabel: "🟦 Rectangle perimeter",
+    prompt: "What is the perimeter?"
+  },
+  {
+    id: "geoStory",
+    lessonId: "geometry",
+    category: "mixed",
+    title: "Math Stories",
+    description: "Real-life word problems!",
+    emoji: "📝",
+    roundType: "wordProblem",
+    config: { op: "add", aMax: 10, bMax: 10, choiceMax: 20 },
+    instruction: "Read the story!",
+    targetLabel: "📝 Word problem",
+    prompt: "What's the answer?"
+  },
+  {
+    id: "geoSubtract",
+    lessonId: "geometry",
+    category: "mixed",
+    title: "Take Away Stories",
+    description: "Subtraction word problems!",
+    emoji: "📗",
+    roundType: "wordProblem",
+    config: { op: "sub", choiceMax: 15 },
+    instruction: "Listen to the story!",
+    targetLabel: "📗 Take away story",
+    prompt: "How many are left?"
+  },
+  // mixed
+  {
+    id: "mixedLite",
+    lessonId: "mixed",
+    category: "mixed",
+    title: "Quick Mix",
+    description: "Easy + and − mixed!",
+    emoji: "🎲",
+    roundType: "mixed",
+    config: { ops: ["add", "sub"] },
+    instruction: "Add or subtract!",
+    targetLabel: "🎲 Quick mix",
+    prompt: "What's the answer?"
+  },
+  // challenge
+  {
+    id: "allOpsRace",
+    lessonId: "challenge",
+    category: "challenge",
+    title: "All Ops Race",
+    description: "Every operation at speed!",
+    emoji: "🏁",
+    roundType: "mixed",
+    instruction: "Solve fast!",
+    targetLabel: "🏁 All operations",
+    prompt: "Pick the answer!"
+  },
+  // bodmasBrackets
+  {
+    id: "bracketPractice",
+    lessonId: "bodmasBrackets",
+    category: "bodmas",
+    title: "Bracket Practice",
+    description: "Solve what's inside ( ) first!",
+    emoji: "🪝",
+    roundType: "bodmas",
+    config: { kind: "bracket_add" },
+    wideText: true,
+    sequenceText: true,
+    instruction: "Brackets first!",
+    targetLabel: "🪝 Bracket sums",
+    prompt: "What is the answer?"
+  },
+  {
+    id: "bracketTimes",
+    lessonId: "bodmasBrackets",
+    category: "bodmas",
+    title: "Bracket Multiply",
+    description: "(a + b) × c — bracket then times!",
+    emoji: "✖️",
+    roundType: "bodmas",
+    config: { kind: "bracket_mul" },
+    wideText: true,
+    sequenceText: true,
+    instruction: "Bracket, then multiply!",
+    targetLabel: "🪝 Bracket ×",
+    prompt: "What is the answer?"
+  },
+  // bodmasMulDiv
+  {
+    id: "mulBeforeAdd",
+    lessonId: "bodmasMulDiv",
+    category: "bodmas",
+    title: "× Before +",
+    description: "Always multiply before adding!",
+    emoji: "⏩",
+    roundType: "bodmas",
+    config: { kind: "md_first" },
+    wideText: true,
+    sequenceText: true,
+    instruction: "× comes first!",
+    targetLabel: "⏩ Multiply first",
+    prompt: "What is the answer?"
+  },
+  {
+    id: "divBeforeAdd",
+    lessonId: "bodmasMulDiv",
+    category: "bodmas",
+    title: "÷ Before +",
+    description: "Divide before you add!",
+    emoji: "➗",
+    roundType: "bodmas",
+    config: { kind: "div_add" },
+    wideText: true,
+    sequenceText: true,
+    instruction: "÷ comes first!",
+    targetLabel: "➗ Divide first",
+    prompt: "What is the answer?"
+  },
+  // bodmasFull
+  {
+    id: "fullBodmasQuiz",
+    lessonId: "bodmasFull",
+    category: "bodmas",
+    title: "Full Rule Quiz",
+    description: "Brackets, ×÷, then +−!",
+    emoji: "🏆",
+    roundType: "bodmas",
+    config: { kind: "full" },
+    wideText: true,
+    sequenceText: true,
+    instruction: "Full BODMAS rule!",
+    targetLabel: "🏆 Complete BODMAS",
+    prompt: "What is the answer?"
+  },
+  // bodmasIntro
+  {
+    id: "bodmasWarmup",
+    lessonId: "bodmasIntro",
+    category: "bodmas",
+    title: "BODMAS Warm-up",
+    description: "Multiply before you add!",
+    emoji: "📐",
+    roundType: "bodmas",
+    config: { kind: "md_first" },
+    wideText: true,
+    sequenceText: true,
+    instruction: "Use BODMAS!",
+    targetLabel: "📐 × before +",
+    prompt: "What is the answer?"
+  }
+];
+
 const ROUND_BUILDERS = {
   dots: buildDotsRound,
   addition: buildAdditionRound,
@@ -573,7 +1601,17 @@ const ROUND_BUILDERS = {
   bodmas: buildBodmasRound,
   shapeName: buildShapeNameRound,
   shapeSides: buildShapeSidesRound,
-  shapeCount: buildShapeCountRound
+  shapeCount: buildShapeCountRound,
+  numberWord: buildNumberWordRound,
+  timeHour: buildTimeHourRound,
+  moneyAdd: buildMoneyAddRound,
+  quarter: buildQuarterRound,
+  decimalTenths: buildDecimalTenthsRound,
+  decimalCompare: buildDecimalCompareRound,
+  percentOf: buildPercentOfRound,
+  algebra: buildAlgebraRound,
+  perimeter: buildPerimeterRound,
+  wordProblem: buildWordProblemRound
 };
 
 const BASE_GAMES = [
@@ -705,9 +1743,10 @@ const EXTRA_GAME_DEFS = [
   { id: "bodmasMaster", category: "bodmas", title: "BODMAS Master", description: "Every BODMAS rule mixed!", roundType: "bodmas", wideText: true, sequenceText: true, instruction: "Use the full BODMAS rule!", targetLabel: "👑 BODMAS Master", prompt: "What is the answer?" }
 ];
 
-const TABLE_GAMES = [2, 3, 4, 5, 6, 7, 8, 9].map((n, i) =>
+const TABLE_GAMES = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n, i) =>
   defineGame(15 + i, {
     id: `mulTable${n}`,
+    lessonId: "timesTables",
     category: "multiplication",
     title: `Times ${n} Trail`,
     description: `Practice multiplying by ${n}!`,
@@ -720,7 +1759,9 @@ const TABLE_GAMES = [2, 3, 4, 5, 6, 7, 8, 9].map((n, i) =>
   })
 );
 
-const EXTRA_GAMES = EXTRA_GAME_DEFS.map((fields, index) =>
+const ALL_EXTRA_DEFS = [...EXTRA_GAME_DEFS, ...CURRICULUM_GAME_DEFS];
+
+const EXTRA_GAMES = ALL_EXTRA_DEFS.map((fields, index) =>
   defineGame(23 + index, {
     emoji: pickEmoji(23 + index),
     instruction: fields.instruction ?? "Pick the correct answer!",
@@ -781,6 +1822,9 @@ export function isShapeDisplayGame(gameId) {
 export function formatChoiceLabel(roundData, choice) {
   if (roundData?.choiceType === "shapeName") {
     return getShapeName(choice);
+  }
+  if (roundData?.choiceType === "decimalTenth") {
+    return `0.${choice}`;
   }
   return String(choice);
 }

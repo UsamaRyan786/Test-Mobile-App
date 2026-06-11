@@ -1,4 +1,918 @@
-import { EXTRA_LESSONS } from "./lessonsExtra";
+import { TEACHER_LABEL } from "./teacherConfig";
+import { BASIC_SHAPES } from "./shapes";
+
+function classSlides(topic, emoji, tip, visual) {
+  return [
+    {
+      title: `What is ${topic}?`,
+      emoji,
+      body: tip,
+      tip: `Watch the whiteboard and listen to ${TEACHER_LABEL}.`,
+      visual
+    },
+    {
+      title: "Look at the Example",
+      emoji: "📋",
+      body: "Study the picture on the whiteboard carefully.",
+      tip: "Say the answer out loud before you play games!",
+      visual
+    },
+    {
+      title: "Remember the Rule",
+      emoji: "💡",
+      body: tip,
+      tip: "You will only play games that match this class.",
+      visual: { type: "celebrate", emoji }
+    },
+    {
+      title: "Class Complete!",
+      emoji: "🎓",
+      body: `Great job! You finished ${topic} class.`,
+      tip: "Your matching games are now unlocked on the home screen!",
+      visual: { type: "celebrate", emoji: "🌟" }
+    }
+  ];
+}
+
+const EXTRA_LESSONS = [
+  {
+    id: "count20",
+    category: "counting",
+    menuLabel: "Count to 20",
+    title: "Count to 20 Class",
+    subtitle: "Count all the way to twenty!",
+    emoji: "2️⃣0️⃣",
+    gradient: ["#BAE6FD", "#0284C7"],
+    unlockAfter: "counting",
+    slides: [
+      {
+        title: "Count Past Ten",
+        emoji: "🎈",
+        body: "You know 1 to 10. Now we count higher — eleven, twelve, thirteen, and more!",
+        tip: "After 10 comes 11. Keep going one number at a time.",
+        visual: { type: "dots", count: 11, item: "🎈", itemLabel: "balloon" }
+      },
+      {
+        title: "Teens Numbers",
+        emoji: "🔢",
+        body: "Eleven, twelve, thirteen… all the way to nineteen. These are the teen numbers!",
+        tip: "Teen numbers start with 1 and end with 9 — like 15.",
+        visual: { type: "equation", parts: ["11", "12", "13", "…", "19"], highlight: "15" }
+      },
+      {
+        title: "Twenty!",
+        emoji: "🌟",
+        body: "Twenty is two tens — 10 and 10 more. That is a big kid number!",
+        tip: "Count on your fingers twice to reach 20.",
+        visual: { type: "dots", count: 20, item: "⭐", itemLabel: "star" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You can count to 20! Tiny Dot Garden and more counting games are unlocked.",
+        tip: "Next: Count to 100 Class!",
+        visual: { type: "celebrate", emoji: "2️⃣0️⃣" }
+      }
+    ]
+  },
+  {
+    id: "count100",
+    category: "counting",
+    menuLabel: "Count to 100",
+    title: "Count to 100 Class",
+    subtitle: "Big numbers — tens and hundreds!",
+    emoji: "💯",
+    gradient: ["#C4B5FD", "#7C3AED"],
+    unlockAfter: "count20",
+    slides: [
+      {
+        title: "Count by Tens",
+        emoji: "🔟",
+        body: "10, 20, 30, 40… counting by tens is fast! Each jump is ten more.",
+        tip: "Skip count: ten, twenty, thirty…",
+        visual: { type: "equation", parts: ["10", "20", "30", "40", "50"], highlight: "30" }
+      },
+      {
+        title: "Numbers 21 to 50",
+        emoji: "📊",
+        body: "Twenty-one, thirty-five, forty-eight — numbers keep growing past twenty!",
+        tip: "Say the tens first, then the ones: thirty + five = 35.",
+        visual: { type: "equation", parts: ["21", "35", "48"], highlight: "35" }
+      },
+      {
+        title: "All the Way to 100",
+        emoji: "💯",
+        body: "One hundred is the goal! Ten groups of ten make 100.",
+        tip: "100 is written as 1-0-0.",
+        visual: { type: "celebrate", emoji: "💯" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You can count to 100! Big Dot Field and skip-count games unlock now.",
+        tip: "Next: Numbers Class — learn to recognise every number!",
+        visual: { type: "celebrate", emoji: "💯" }
+      }
+    ]
+  },
+  {
+    id: "numbers",
+    category: "counting",
+    menuLabel: "Numbers",
+    title: "Numbers Class",
+    subtitle: "Learn numbers 0 to 10!",
+    emoji: "🔟",
+    gradient: ["#FDE68A", "#F59E0B"],
+    unlockAfter: "count100",
+    slides: [
+      {
+        title: "Meet the Numbers",
+        emoji: "🔟",
+        body: "Numbers are symbols we use to count — 0, 1, 2, 3, and all the way to 10!",
+        tip: "Each number has a name and a symbol.",
+        visual: { type: "equation", parts: ["0", "1", "2", "3", "4"], highlight: "3" }
+      },
+      {
+        title: "Zero and One",
+        emoji: "0️⃣",
+        body: "Zero means nothing. One means a single thing — one apple, one star!",
+        tip: "0 is empty. 1 is the first counting number.",
+        visual: { type: "dots", count: 1, item: "⭐", itemLabel: "star" }
+      },
+      {
+        title: "Numbers 2 to 5",
+        emoji: "🖐️",
+        body: "Hold up your fingers! Two, three, four, five — each number is one more.",
+        tip: "Count on your fingers as you say each number.",
+        visual: { type: "dots", count: 5, item: "🌸", itemLabel: "flower" }
+      },
+      {
+        title: "Numbers 6 to 10",
+        emoji: "🔢",
+        body: "Six, seven, eight, nine, ten! These are the big kid numbers up to ten.",
+        tip: "Ten is two hands — all fingers up!",
+        visual: { type: "dots", count: 10, item: "🎈", itemLabel: "balloon" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You know numbers 0 to 10! Number Order Class is next.",
+        tip: "Say each number out loud every day to remember them!",
+        visual: { type: "celebrate", emoji: "🔟" }
+      }
+    ]
+  },
+  {
+    id: "shapes",
+    category: "shapes",
+    menuLabel: "Shapes",
+    title: "Shapes Class",
+    subtitle: "Learn circles, squares, triangles & more!",
+    emoji: "🔷",
+    gradient: ["#FBCFE8", "#EC4899"],
+    unlockAfter: "evenOdd",
+    slides: [
+      {
+        title: "What Are Shapes?",
+        emoji: "🔷",
+        body: "Shapes are flat forms we see everywhere — on signs, toys, windows, and drawings!",
+        tip: "Look around you. Can you spot a circle or a square?",
+        visual: { type: "shapes", shapes: BASIC_SHAPES }
+      },
+      {
+        title: "Round Shapes",
+        emoji: "⭕",
+        body: "Circle, oval, and heart are round shapes. They curve smoothly with no pointy corners.",
+        tip: "A ball looks like a circle. An egg looks like an oval.",
+        visual: {
+          type: "shapes",
+          shapes: BASIC_SHAPES.filter((shape) => shape.group === "round"),
+          label: "Round shapes:"
+        }
+      },
+      {
+        title: "Shapes with Corners",
+        emoji: "🟧",
+        body: "Square, rectangle, triangle, star, and diamond have straight sides and corners.",
+        tip: "A triangle has 3 sides. A square has 4 equal sides.",
+        visual: {
+          type: "shapes",
+          shapes: BASIC_SHAPES.filter((shape) => shape.group === "corners"),
+          label: "Shapes with corners:"
+        }
+      },
+      {
+        title: "Count the Shapes",
+        emoji: "🔺",
+        body: "You can count shapes just like you count objects. How many triangles do you see?",
+        tip: "Point to each triangle and say one, two, three…",
+        visual: { type: "dots", count: 4, item: "🔺", itemLabel: "triangle" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You learned basic shapes! Shape games are unlocked for you now.",
+        tip: "Next: Patterns Class — spot colours and sequences!",
+        visual: { type: "celebrate", emoji: "🔷" }
+      }
+    ]
+  },
+  {
+    id: "compare",
+    category: "compare",
+    menuLabel: "Compare",
+    title: "Compare Class",
+    subtitle: "Learn bigger and smaller numbers!",
+    emoji: "⚖️",
+    gradient: ["#BFDBFE", "#3B82F6"],
+    unlockAfter: "numberLine",
+    slides: classSlides(
+      "Compare",
+      "⚖️",
+      "Compare means finding which number is bigger or smaller.",
+      { type: "equation", parts: ["7", ">", "3"], highlight: "7" }
+    )
+  },
+  {
+    id: "numberLine",
+    category: "patterns",
+    menuLabel: "Number Order",
+    title: "Number Order Class",
+    subtitle: "What comes before and after!",
+    emoji: "🎢",
+    gradient: ["#A5F3FC", "#06B6D4"],
+    unlockAfter: "numbers",
+    slides: [
+      {
+        title: "The Number Line",
+        emoji: "🎢",
+        body: "Numbers go in order on a line — like steps on stairs. Each step is one more.",
+        tip: "Left is smaller, right is bigger!",
+        visual: { type: "equation", parts: ["1", "2", "3", "4", "5"], highlight: "3" }
+      },
+      {
+        title: "What Comes After?",
+        emoji: "➡️",
+        body: "After 4 comes 5. After 7 comes 8. The next number is always one more!",
+        tip: "After means the number to the right.",
+        visual: { type: "equation", parts: ["6", "→", "7"], highlight: "7" }
+      },
+      {
+        title: "What Comes Before?",
+        emoji: "⬅️",
+        body: "Before 9 is 8. Before 3 is 2. The number before is one less!",
+        tip: "Before means the number to the left.",
+        visual: { type: "equation", parts: ["4", "←", "3"], highlight: "3" }
+      },
+      {
+        title: "In Between",
+        emoji: "🎯",
+        body: "What number is between 5 and 7? It's 6 — right in the middle!",
+        tip: "Between means the number in the middle.",
+        visual: { type: "equation", parts: ["5", "?", "7"], highlight: "6" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You know number order! Pattern games will help you practice.",
+        tip: "Next up: Even & Odd Class!",
+        visual: { type: "celebrate", emoji: "🎢" }
+      }
+    ]
+  },
+  {
+    id: "evenOdd",
+    category: "evenOdd",
+    menuLabel: "Even & Odd",
+    title: "Even & Odd Class",
+    subtitle: "Learn even and odd numbers!",
+    emoji: "🦉",
+    gradient: ["#E9D5FF", "#A855F7"],
+    unlockAfter: "compare",
+    slides: classSlides(
+      "Even and Odd",
+      "🦉",
+      "Even numbers can be split into pairs. Odd numbers have one left over.",
+      { type: "equation", parts: ["4", "=", "even"], highlight: "even" }
+    )
+  },
+  {
+    id: "money",
+    category: "addition",
+    menuLabel: "Money",
+    title: "Money & Coins Class",
+    subtitle: "Count coins and make totals!",
+    emoji: "🪙",
+    gradient: ["#FEF08A", "#EAB308"],
+    unlockAfter: "timeBasics",
+    slides: [
+      {
+        title: "Pakistani Rupees",
+        emoji: "🇵🇰",
+        body: "In Pakistan we use rupees — Rs. Coins come in 1, 2, 5, and 10 rupee pieces!",
+        tip: "Rs. means rupees — our money in Pakistan.",
+        visual: { type: "dots", count: 3, item: "🪙", itemLabel: "rupee coin" }
+      },
+      {
+        title: "Count the Coins",
+        emoji: "💰",
+        body: "If you have 4 coins of Rs. 5 each, count them: one, two, three, four!",
+        tip: "Counting coins is just like counting objects.",
+        visual: { type: "dots", count: 4, item: "🪙", itemLabel: "coin" }
+      },
+      {
+        title: "Add Coins Together",
+        emoji: "➕",
+        body: "Rs. 2 plus Rs. 3 makes Rs. 5 altogether — same as 2 + 3 = 5!",
+        tip: "Adding money uses the same maths as adding numbers!",
+        visual: { type: "groups", left: 2, right: 3, symbol: "+", item: "🪙" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You can count and add coins! Keep practicing with addition games.",
+        tip: "Next: Measure Class — long, short, and more!",
+        visual: { type: "celebrate", emoji: "🪙" }
+      }
+    ]
+  },
+  {
+    id: "measure",
+    category: "compare",
+    menuLabel: "Measure",
+    title: "Measure Class",
+    subtitle: "Long, short, heavy & light!",
+    emoji: "📏",
+    gradient: ["#BBF7D0", "#16A34A"],
+    unlockAfter: "money",
+    slides: [
+      {
+        title: "Compare Sizes",
+        emoji: "📏",
+        body: "Some things are long and some are short. We can compare how big things are!",
+        tip: "Longer means more length. Shorter means less.",
+        visual: { type: "equation", parts: ["long", ">", "short"], highlight: "long" }
+      },
+      {
+        title: "Heavy and Light",
+        emoji: "⚖️",
+        body: "A big rock is heavy. A feather is light. Which weighs more?",
+        tip: "Heavy goes down on a scale. Light goes up!",
+        visual: { type: "equation", parts: ["🪨", ">", "🪶"], highlight: "🪨" }
+      },
+      {
+        title: "More and Less",
+        emoji: "🍎",
+        body: "5 apples is more than 2 apples. 3 books is less than 7 books.",
+        tip: "More means a bigger number. Less means a smaller number.",
+        visual: { type: "groups", left: 5, right: 2, symbol: ">", item: "🍎" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You learned to compare size and amount! Multiplication Class is next.",
+        tip: "Use compare games to practice more and less!",
+        visual: { type: "celebrate", emoji: "📏" }
+      }
+    ]
+  },
+  {
+    id: "patterns",
+    category: "patterns",
+    menuLabel: "Patterns",
+    title: "Patterns Class",
+    subtitle: "Spot number patterns and sequences!",
+    emoji: "🔮",
+    gradient: ["#DDD6FE", "#8B5CF6"],
+    unlockAfter: "timesTables",
+    slides: classSlides(
+      "Patterns",
+      "🔮",
+      "Patterns are numbers that follow a rule, like counting by twos or fives.",
+      { type: "equation", parts: ["2", ",", "4", ",", "6", "…"], highlight: "6" }
+    )
+  },
+  {
+    id: "patternsIntro",
+    category: "patterns",
+    menuLabel: "Patterns",
+    title: "Patterns & Colours Class",
+    subtitle: "Spot colours and simple sequences!",
+    emoji: "🌈",
+    gradient: ["#FDE68A", "#F97316"],
+    unlockAfter: "shapes",
+    slides: [
+      {
+        title: "Colours Everywhere",
+        emoji: "🎨",
+        body: "Red, blue, green, yellow — colours help us sort and match things!",
+        tip: "Say the colour name out loud when you see it.",
+        visual: { type: "equation", parts: ["🔴", "🔵", "🟢", "🟡"], highlight: "🔵" }
+      },
+      {
+        title: "What Comes Next?",
+        emoji: "🔮",
+        body: "Red, blue, red, blue — what colour comes next? Patterns repeat!",
+        tip: "Look for what repeats again and again.",
+        visual: { type: "equation", parts: ["🔴", "🔵", "🔴", "🔵", "?"], highlight: "🔴" }
+      },
+      {
+        title: "Number Patterns",
+        emoji: "1️⃣",
+        body: "1, 2, 3, 4 — numbers can make patterns too! What number comes after 4?",
+        tip: "Counting in order is the simplest pattern.",
+        visual: { type: "equation", parts: ["1", "2", "3", "4", "5"], highlight: "5" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You can spot patterns and colours! Pattern games unlock now.",
+        tip: "Next: Addition Class — Grade 1 starts here!",
+        visual: { type: "celebrate", emoji: "🌈" }
+      }
+    ]
+  },
+  {
+    id: "numberBonds",
+    category: "addition",
+    menuLabel: "Number Bonds",
+    title: "Number Bonds Class",
+    subtitle: "Numbers that make 5, 10, and 20!",
+    emoji: "🔗",
+    gradient: ["#A7F3D0", "#059669"],
+    unlockAfter: "addition",
+    slides: [
+      {
+        title: "What Are Number Bonds?",
+        emoji: "🔗",
+        body: "Number bonds are pairs that make a total. 2 and 3 make 5!",
+        tip: "Think: which two numbers join to make the target?",
+        visual: { type: "equation", parts: ["2", "+", "3", "=", "5"], highlight: "5" }
+      },
+      {
+        title: "Make Five",
+        emoji: "🖐️",
+        body: "Hold up 5 fingers. If 2 are down, 3 are up. 2 + 3 = 5!",
+        tip: "Use your fingers to find the missing bond.",
+        visual: { type: "groups", left: 2, right: 3, symbol: "+", item: "🌸" }
+      },
+      {
+        title: "Make Ten",
+        emoji: "🔟",
+        body: "Ten is a magic number! 6 + 4 = 10 and 7 + 3 = 10.",
+        tip: "Practice pairs that make 10 every day.",
+        visual: { type: "equation", parts: ["6", "+", "4", "=", "10"], highlight: "10" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You know number bonds! Make Five, Make Ten, and Make Twenty games unlock.",
+        tip: "Next: Subtraction Class!",
+        visual: { type: "celebrate", emoji: "🔗" }
+      }
+    ]
+  },
+  {
+    id: "timeBasics",
+    category: "measure",
+    menuLabel: "Time",
+    title: "Time & Clock Class",
+    subtitle: "Hours, minutes, and the clock!",
+    emoji: "🕐",
+    gradient: ["#BFDBFE", "#2563EB"],
+    unlockAfter: "subtraction",
+    slides: [
+      {
+        title: "Reading the Clock",
+        emoji: "🕐",
+        body: "A clock has two hands. The short hand shows the hour. The long hand shows minutes.",
+        tip: "When the long hand points to 12, it is o'clock!",
+        visual: { type: "equation", parts: ["🕐", "1", "o'clock"], highlight: "1" }
+      },
+      {
+        title: "Hours of the Day",
+        emoji: "☀️",
+        body: "Morning, afternoon, evening, night — the day has 24 hours!",
+        tip: "School time, lunch time, bedtime — all have a time.",
+        visual: { type: "equation", parts: ["☀️", "morning", "🌙", "night"], highlight: "morning" }
+      },
+      {
+        title: "Half Past",
+        emoji: "🕧",
+        body: "When the long hand points to 6, it is half past the hour — 30 minutes!",
+        tip: "Half past 3 means 3:30.",
+        visual: { type: "equation", parts: ["3", ":", "30"], highlight: "30" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You learned clock basics! Money & Coins Class is next.",
+        tip: "Look at a real clock at home and say the time!",
+        visual: { type: "celebrate", emoji: "🕐" }
+      }
+    ]
+  },
+  {
+    id: "fractions",
+    category: "division",
+    menuLabel: "Fractions",
+    title: "Fractions Class",
+    subtitle: "Halves and quarters!",
+    emoji: "🍕",
+    gradient: ["#FECDD3", "#E11D48"],
+    unlockAfter: "division",
+    slides: [
+      {
+        title: "What Is a Half?",
+        emoji: "🍕",
+        body: "Cut a pizza into 2 equal pieces. Each piece is one half — written as ½!",
+        tip: "Half means 2 equal parts.",
+        visual: { type: "equation", parts: ["1", "÷", "2", "=", "½"], highlight: "½" }
+      },
+      {
+        title: "What Is a Quarter?",
+        emoji: "🥧",
+        body: "Cut into 4 equal pieces. Each piece is one quarter — ¼!",
+        tip: "Quarter means 4 equal parts.",
+        visual: { type: "equation", parts: ["1", "÷", "4", "=", "¼"], highlight: "¼" }
+      },
+      {
+        title: "Half of a Number",
+        emoji: "🪓",
+        body: "Half of 8 is 4. Split 8 into two equal groups!",
+        tip: "8 ÷ 2 = 4 — that is half of 8.",
+        visual: { type: "equation", parts: ["8", "÷", "2", "=", "4"], highlight: "4" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You know halves and quarters! Half Moon Math unlocks now.",
+        tip: "Next: Times Tables Class!",
+        visual: { type: "celebrate", emoji: "🍕" }
+      }
+    ]
+  },
+  {
+    id: "timesTables",
+    category: "multiplication",
+    menuLabel: "Times Tables",
+    title: "Times Tables Class",
+    subtitle: "Master tables from 2 to 12!",
+    emoji: "🗼",
+    gradient: ["#F9A8D4", "#DB2777"],
+    unlockAfter: "fractions",
+    slides: [
+      {
+        title: "Why Times Tables?",
+        emoji: "🗼",
+        body: "Times tables help you multiply fast! 2×3, 4×5, 7×8 — learn them by heart.",
+        tip: "Practice one table at a time, starting with ×2.",
+        visual: { type: "equation", parts: ["3", "×", "4", "=", "12"], highlight: "12" }
+      },
+      {
+        title: "Table of 2",
+        emoji: "2️⃣",
+        body: "2, 4, 6, 8, 10 — skip counting by twos is the ×2 table!",
+        tip: "2 × 5 = 10",
+        visual: { type: "equation", parts: ["2", "4", "6", "8", "10"], highlight: "6" }
+      },
+      {
+        title: "Tables 2 to 12",
+        emoji: "📋",
+        body: "Pakistani schools learn tables up to 12. Practice a little every day!",
+        tip: "Say the whole table out loud: 3 ones are 3, 3 twos are 6…",
+        visual: { type: "equation", parts: ["7", "×", "8", "=", "56"], highlight: "56" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "Times table games from ×2 to ×9 are unlocked! Keep practicing!",
+        tip: "Next: Advanced Patterns Class!",
+        visual: { type: "celebrate", emoji: "🗼" }
+      }
+    ]
+  },
+  {
+    id: "decimals",
+    category: "mixed",
+    menuLabel: "Decimals",
+    title: "Decimals Class",
+    subtitle: "Numbers with a dot!",
+    emoji: "🔢",
+    gradient: ["#A5F3FC", "#0891B2"],
+    unlockAfter: "patterns",
+    slides: classSlides(
+      "Decimals",
+      "🔢",
+      "Decimals use a dot to show parts of a whole — like 0.5 means half.",
+      { type: "equation", parts: ["0", ".", "5", "=", "½"], highlight: "0.5" }
+    )
+  },
+  {
+    id: "percentage",
+    category: "mixed",
+    menuLabel: "Percentage",
+    title: "Percentage Class",
+    subtitle: "Parts out of 100!",
+    emoji: "💯",
+    gradient: ["#DDD6FE", "#7C3AED"],
+    unlockAfter: "decimals",
+    slides: classSlides(
+      "Percentage",
+      "💯",
+      "Percent means out of 100. 50% is the same as half — 50 out of 100.",
+      { type: "equation", parts: ["50", "%", "=", "½"], highlight: "50%" }
+    )
+  },
+  {
+    id: "algebraBasics",
+    category: "bodmas",
+    menuLabel: "Algebra",
+    title: "Algebra Basics Class",
+    subtitle: "Letters for unknown numbers!",
+    emoji: "🔤",
+    gradient: ["#FBCFE8", "#BE185D"],
+    unlockAfter: "percentage",
+    slides: [
+      {
+        title: "What Is a Variable?",
+        emoji: "🔤",
+        body: "In algebra, a letter like x stands for a number we do not know yet.",
+        tip: "x + 3 = 7 means find the number that makes this true.",
+        visual: { type: "equation", parts: ["x", "+", "3", "=", "7"], highlight: "x" }
+      },
+      {
+        title: "Simple Equations",
+        emoji: "⚖️",
+        body: "If x + 3 = 7, then x = 4. Both sides must balance!",
+        tip: "What plus 3 makes 7? That is x.",
+        visual: { type: "equation", parts: ["x", "=", "4"], highlight: "4" }
+      },
+      {
+        title: "Order of Operations",
+        emoji: "📐",
+        body: "BODMAS tells us what to solve first — brackets, then ×÷, then +−.",
+        tip: "B → O → D → M → A → S",
+        visual: { type: "equation", parts: ["B", "O", "D", "M", "A", "S"], highlight: "B" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You met algebra and BODMAS! BODMAS games unlock as you continue.",
+        tip: "Next: Geometry Class!",
+        visual: { type: "celebrate", emoji: "🔤" }
+      }
+    ]
+  },
+  {
+    id: "geometry",
+    category: "shapes",
+    menuLabel: "Geometry",
+    title: "Geometry & Word Problems Class",
+    subtitle: "Angles, area, and real-life maths!",
+    emoji: "📐",
+    gradient: ["#BBF7D0", "#15803D"],
+    unlockAfter: "algebraBasics",
+    slides: [
+      {
+        title: "Shapes and Angles",
+        emoji: "📐",
+        body: "Triangles, squares, and rectangles have sides and corners called angles.",
+        tip: "A square has 4 equal sides and 4 right angles.",
+        visual: {
+          type: "shapes",
+          shapes: BASIC_SHAPES.filter((s) => s.name === "Square" || s.name === "Triangle")
+        }
+      },
+      {
+        title: "Perimeter",
+        emoji: "📏",
+        body: "Perimeter is the distance around a shape. Add all the sides!",
+        tip: "A square with side 3 has perimeter 3 + 3 + 3 + 3 = 12.",
+        visual: { type: "equation", parts: ["3", "+", "3", "+", "3", "+", "3", "=", "12"], highlight: "12" }
+      },
+      {
+        title: "Word Problems",
+        emoji: "📝",
+        body: "Real maths uses words! 'Ali has 5 apples and buys 3 more' means 5 + 3.",
+        tip: "Listen for plus, minus, times, and divide in the story.",
+        visual: { type: "groups", left: 5, right: 3, symbol: "+", item: "🍎" }
+      },
+      {
+        title: "You're Ready!",
+        emoji: "🎉",
+        body: "You learned geometry basics and word problems! Mixed practice is next.",
+        tip: "Look for shapes and numbers around you every day!",
+        visual: { type: "celebrate", emoji: "📐" }
+      }
+    ]
+  },
+  {
+    id: "mixed",
+    category: "mixed",
+    menuLabel: "Mixed",
+    title: "Mixed Operations Class",
+    subtitle: "Practice + − × ÷ together!",
+    emoji: "🎲",
+    gradient: ["#FDE68A", "#D97706"],
+    unlockAfter: "geometry",
+    slides: classSlides(
+      "Mixed Operations",
+      "🎲",
+      "Mixed means different operations in one practice — add, subtract, multiply, or divide.",
+      { type: "equation", parts: ["3", "+", "4", "×", "2"], highlight: "11" }
+    )
+  },
+  {
+    id: "bodmasIntro",
+    category: "bodmas",
+    menuLabel: "BODMAS Intro",
+    title: "BODMAS Intro Class",
+    subtitle: "Meet the order of operations!",
+    emoji: "📐",
+    gradient: ["#FBCFE8", "#EC4899"],
+    unlockAfter: "mixed",
+    slides: [
+      {
+        title: "What is BODMAS?",
+        emoji: "📐",
+        body: "BODMAS tells us which part of a sum to solve first: Brackets, Orders, Divide, Multiply, Add, Subtract.",
+        tip: "B → O → D → M → A → S",
+        visual: { type: "equation", parts: ["B", "O", "D", "M", "A", "S"], highlight: "B" }
+      },
+      {
+        title: "Brackets First",
+        emoji: "🪝",
+        body: "Always solve brackets ( ) first — they come before everything else!",
+        tip: "(2 + 3) means solve 2 + 3 inside the bracket first.",
+        visual: { type: "equation", parts: ["(", "2", "+", "3", ")", "×", "4"], highlight: "5" }
+      },
+      {
+        title: "× and ÷ Before + and −",
+        emoji: "✖️",
+        body: "Multiply and divide come before add and subtract.",
+        tip: "In 3 + 4 × 2, do 4 × 2 first!",
+        visual: { type: "equation", parts: ["3", "+", "4", "×", "2", "=", "11"], highlight: "11" }
+      },
+      {
+        title: "Class Complete!",
+        emoji: "🎓",
+        body: "You met BODMAS! Next classes teach brackets, then ×÷, then full BODMAS games.",
+        tip: "Try BODMAS Order Quiz when it unlocks!",
+        visual: { type: "celebrate", emoji: "📐" }
+      }
+    ]
+  },
+  {
+    id: "bodmasBrackets",
+    category: "bodmas",
+    menuLabel: "Brackets",
+    title: "Brackets Class",
+    subtitle: "Brackets ( ) come first!",
+    emoji: "🪝",
+    gradient: ["#F9A8D4", "#DB2777"],
+    unlockAfter: "bodmasIntro",
+    slides: classSlides(
+      "Brackets",
+      "🪝",
+      "Work out the bracket first, then use that answer in the rest of the sum.",
+      { type: "equation", parts: ["(", "2", "+", "3", ")", "+", "4", "=", "9"], highlight: "9" }
+    )
+  },
+  {
+    id: "bodmasMulDiv",
+    category: "bodmas",
+    menuLabel: "× ÷ First",
+    title: "Multiply & Divide First Class",
+    subtitle: "Do × and ÷ before + and −!",
+    emoji: "⏩",
+    gradient: ["#FDBA74", "#EA580C"],
+    unlockAfter: "bodmasBrackets",
+    slides: classSlides(
+      "Multiply and Divide First",
+      "⏩",
+      "When there are no brackets, multiply and divide before you add or subtract.",
+      { type: "equation", parts: ["5", "+", "2", "×", "3", "=", "11"], highlight: "11" }
+    )
+  },
+  {
+    id: "bodmasFull",
+    category: "bodmas",
+    menuLabel: "Full BODMAS",
+    title: "Full BODMAS Class",
+    subtitle: "Brackets, then ×÷, then +−!",
+    emoji: "🏆",
+    gradient: ["#FCA5A5", "#DC2626"],
+    unlockAfter: "bodmasMulDiv",
+    slides: classSlides(
+      "Full BODMAS",
+      "🏆",
+      "Use the full rule: brackets first, then multiply and divide, then add and subtract.",
+      { type: "equation", parts: ["(", "1", "+", "2", ")", "×", "3", "+", "4", "=", "13"], highlight: "13" }
+    )
+  },
+  {
+    id: "challenge",
+    category: "challenge",
+    menuLabel: "Challenge",
+    title: "Challenge Class",
+    subtitle: "Super mixed practice for experts!",
+    emoji: "🥇",
+    gradient: ["#FEF08A", "#CA8A04"],
+    unlockAfter: "bodmasFull",
+    slides: classSlides(
+      "Challenge",
+      "🥇",
+      "Challenge games mix everything you learned — count, patterns, operations, and BODMAS!",
+      { type: "celebrate", emoji: "🏆" }
+    )
+  }
+];
+
+/** Pakistani curriculum order (Punjab / Federal / Sindh / Cambridge Primary aligned). */
+
+export const LESSON_ORDER = [
+  // Pre-Primary — number sense & shapes
+  "counting",
+  "count20",
+  "count100",
+  "numbers",
+  "numberLine",
+  "compare",
+  "evenOdd",
+  "shapes",
+  "patternsIntro",
+  // Grade 1 — operations & measurement
+  "addition",
+  "numberBonds",
+  "subtraction",
+  "timeBasics",
+  "money",
+  "measure",
+  // Grade 2 — arithmetic & fractions intro
+  "multiplication",
+  "division",
+  "fractions",
+  // Grade 3 — times tables & patterns
+  "timesTables",
+  "patterns",
+  // Grades 4–5 — decimals & percentage
+  "decimals",
+  "percentage",
+  // Grades 6–8 — algebra & geometry
+  "algebraBasics",
+  "geometry",
+  // Advanced practice
+  "mixed",
+  "bodmasIntro",
+  "bodmasBrackets",
+  "bodmasMulDiv",
+  "bodmasFull",
+  "challenge"
+];
+
+export const LESSON_META = {
+  counting: { gradeBand: "Pre-Primary", voiceLevel: 1 },
+  count20: { gradeBand: "Pre-Primary", voiceLevel: 1 },
+  count100: { gradeBand: "Pre-Primary", voiceLevel: 1 },
+  numbers: { gradeBand: "Pre-Primary", voiceLevel: 1 },
+  numberLine: { gradeBand: "Pre-Primary", voiceLevel: 1 },
+  compare: { gradeBand: "Pre-Primary", voiceLevel: 1 },
+  evenOdd: { gradeBand: "Pre-Primary", voiceLevel: 1 },
+  shapes: { gradeBand: "Pre-Primary", voiceLevel: 1 },
+  patternsIntro: { gradeBand: "Pre-Primary", voiceLevel: 1 },
+  addition: { gradeBand: "Grade 1", voiceLevel: 2 },
+  numberBonds: { gradeBand: "Grade 1", voiceLevel: 2 },
+  subtraction: { gradeBand: "Grade 1", voiceLevel: 3 },
+  timeBasics: { gradeBand: "Grade 1", voiceLevel: 3 },
+  money: { gradeBand: "Grade 1", voiceLevel: 2 },
+  measure: { gradeBand: "Grade 1", voiceLevel: 2 },
+  multiplication: { gradeBand: "Grade 2", voiceLevel: 4 },
+  division: { gradeBand: "Grade 2", voiceLevel: 5 },
+  fractions: { gradeBand: "Grade 2", voiceLevel: 6 },
+  timesTables: { gradeBand: "Grade 3", voiceLevel: 4 },
+  patterns: { gradeBand: "Grade 3", voiceLevel: 1 },
+  decimals: { gradeBand: "Grade 4", voiceLevel: 7 },
+  percentage: { gradeBand: "Grade 5", voiceLevel: 8 },
+  algebraBasics: { gradeBand: "Grade 6", voiceLevel: 9 },
+  geometry: { gradeBand: "Grade 7", voiceLevel: 10 },
+  mixed: { gradeBand: "Practice", voiceLevel: 10 },
+  bodmasIntro: { gradeBand: "Grade 6+", voiceLevel: 9 },
+  bodmasBrackets: { gradeBand: "Grade 6+", voiceLevel: 9 },
+  bodmasMulDiv: { gradeBand: "Grade 6+", voiceLevel: 9 },
+  bodmasFull: { gradeBand: "Grade 6+", voiceLevel: 9 },
+  challenge: { gradeBand: "Expert", voiceLevel: 10 }
+};
+
+export function applyLessonMeta(lesson) {
+  const meta = LESSON_META[lesson.id] || {};
+  return { ...lesson, ...meta };
+}
+
+export function buildCurriculumLessons(allLessons) {
+  const map = Object.fromEntries(allLessons.map((lesson) => [lesson.id, lesson]));
+  return LESSON_ORDER.map((id) => map[id]).filter(Boolean).map(applyLessonMeta);
+}
 
 const CORE_LESSON_DEFS = [
   {
@@ -35,7 +949,7 @@ const CORE_LESSON_DEFS = [
         title: "You're Ready!",
         emoji: "🎉",
         body: "You learned to count! Dot-counting games like Number Match Garden are unlocked for you now.",
-        tip: "Next time, try Shapes Class to learn circles, squares, and triangles!",
+        tip: "Next: Count to 20 Class — keep counting higher!",
         visual: { type: "celebrate", emoji: "🌈" }
       }
     ]
@@ -47,7 +961,7 @@ const CORE_LESSON_DEFS = [
     subtitle: "Learn what plus (+) means!",
     emoji: "➕",
     gradient: ["#86EFAC", "#22C55E"],
-    unlockAfter: "evenOdd",
+    unlockAfter: "patternsIntro",
     slides: [
       {
         title: "What is Addition?",
@@ -95,7 +1009,7 @@ const CORE_LESSON_DEFS = [
     subtitle: "Learn what minus (−) means!",
     emoji: "➖",
     gradient: ["#93C5FD", "#6366F1"],
-    unlockAfter: "addition",
+    unlockAfter: "numberBonds",
     slides: [
       {
         title: "What is Subtraction?",
@@ -141,7 +1055,7 @@ const CORE_LESSON_DEFS = [
     subtitle: "Learn what times (×) means!",
     emoji: "✖️",
     gradient: ["#F9A8D4", "#EC4899"],
-    unlockAfter: "subtraction",
+    unlockAfter: "measure",
     slides: [
       {
         title: "What is Multiplication?",
@@ -238,23 +1152,7 @@ const CORE_LESSONS = [
 
 export { CORE_LESSONS };
 
-export const LESSONS = [
-  CORE_LESSONS[0],
-  EXTRA_LESSONS[0],
-  EXTRA_LESSONS[1],
-  EXTRA_LESSONS[2],
-  CORE_LESSONS[1],
-  CORE_LESSONS[2],
-  CORE_LESSONS[3],
-  CORE_LESSONS[4],
-  EXTRA_LESSONS[3],
-  EXTRA_LESSONS[4],
-  EXTRA_LESSONS[5],
-  EXTRA_LESSONS[6],
-  EXTRA_LESSONS[7],
-  EXTRA_LESSONS[8],
-  EXTRA_LESSONS[9]
-];
+export const LESSONS = buildCurriculumLessons([...CORE_LESSON_DEFS, ...EXTRA_LESSONS]);
 
 export const ALL_LESSONS = LESSONS;
 
@@ -279,7 +1177,7 @@ export function getLessonForCategory(categoryId) {
 }
 
 export function getLessonProgress(progress, lessonId) {
-  return progress?.lessons?.[lessonId] || { completed: false, slide: 0 };
+  return progress?.lessons?.[lessonId] || { completed: false, slide: 0, speechReady: false };
 }
 
 export function getResumeSlideIndex(progress, lessonId) {
@@ -292,7 +1190,7 @@ export function getResumeSlideIndex(progress, lessonId) {
   return Math.max(0, Math.min(saved, lesson.slides.length - 1));
 }
 
-export function saveLessonCheckpoint(progress, lessonId, slideIndex) {
+export function saveLessonCheckpoint(progress, lessonId, slideIndex, speechReady = false) {
   if (isLessonComplete(progress, lessonId)) {
     return progress;
   }
@@ -304,15 +1202,33 @@ export function saveLessonCheckpoint(progress, lessonId, slideIndex) {
     lessons: { ...progress.lessons }
   };
   const current = getLessonProgress(next, lessonId);
+  const savedSlide = Math.min(clamped, current.slide ?? clamped);
   next.lessons[lessonId] = {
     ...current,
-    slide: clamped
+    slide: savedSlide,
+    speechReady: speechReady && savedSlide === clamped
   };
   return next;
 }
 
 export function markLessonStepComplete(progress, lessonId, completedSlideIndex) {
-  return saveLessonCheckpoint(progress, lessonId, completedSlideIndex + 1);
+  if (isLessonComplete(progress, lessonId)) {
+    return progress;
+  }
+
+  const lesson = getLesson(lessonId);
+  const nextSlide = Math.min(completedSlideIndex + 1, lesson.slides.length - 1);
+  const next = {
+    ...progress,
+    lessons: { ...progress.lessons }
+  };
+  const current = getLessonProgress(next, lessonId);
+  next.lessons[lessonId] = {
+    ...current,
+    slide: nextSlide,
+    speechReady: false
+  };
+  return next;
 }
 
 export function isLessonComplete(progress, lessonId) {
@@ -373,4 +1289,179 @@ export function getCompletedLessonCount(progress) {
 
 export function getLessonForGameCategory(categoryId) {
   return getLessonForCategory(categoryId);
+}
+
+export const LESSON_BY_CATEGORY = {
+  counting: "counting",
+  shapes: "shapes",
+  numbers: "numbers",
+  numberLine: "numberLine",
+  money: "money",
+  measure: "measure",
+  compare: "compare",
+  evenOdd: "evenOdd",
+  addition: "addition",
+  subtraction: "subtraction",
+  multiplication: "multiplication",
+  division: "division",
+  patterns: "patterns",
+  mixed: "mixed",
+  bodmas: "bodmasFull",
+  challenge: "challenge"
+};
+
+/** Maps each game to the class that must be completed first (Pakistani curriculum order). */
+export const GAME_LESSON_OVERRIDES = {
+  // Pre-Primary — counting & number sense
+  match: "counting",
+  dotsTiny: "count20",
+  dotsBig: "count100",
+  skipBy10: "count100",
+  beforeAfter: "numberLine",
+  beforeOnly: "numberLine",
+  afterOnly: "numberLine",
+  betweenNumbers: "numberLine",
+  compare: "compare",
+  smaller: "compare",
+  compareBig: "measure",
+  pickOdd: "evenOdd",
+  pickEven: "evenOdd",
+  shapeSpotter: "shapes",
+  shapeMatch: "shapes",
+  shapeSides: "shapes",
+  shapeCount: "shapes",
+  sequence: "patternsIntro",
+  skipBy5: "patternsIntro",
+
+  // Grade 1 — operations & bonds
+  addition: "addition",
+  addTiny: "addition",
+  addMedium: "addition",
+  addBig: "addition",
+  addThree: "addition",
+  addOneMore: "addition",
+  addTens: "addition",
+  addZero: "addition",
+  addFriends6: "addition",
+  addFriends8: "addition",
+  makeFive: "numberBonds",
+  makeTen: "numberBonds",
+  makeTwenty: "numberBonds",
+  subtraction: "subtraction",
+  subTiny: "subtraction",
+  subBig: "subtraction",
+  subFromTen: "subtraction",
+  subSame: "subtraction",
+
+  // Grade 2 — multiply & divide
+  multiplication: "multiplication",
+  mulFast4: "multiplication",
+  mulBy0: "multiplication",
+  mulBy1: "multiplication",
+  doubles: "multiplication",
+  triples: "multiplication",
+  squares: "multiplication",
+  doubleBig: "multiplication",
+  division: "division",
+  divBy1: "division",
+  divBig: "division",
+  divShare6: "division",
+  halves: "fractions",
+
+  // Grade 3 — times tables & patterns
+  timesTables: "timesTables",
+  mulTable2: "timesTables",
+  mulTable3: "timesTables",
+  mulTable4: "timesTables",
+  mulTable5: "timesTables",
+  mulTable6: "timesTables",
+  mulTable7: "timesTables",
+  mulTable8: "timesTables",
+  mulTable9: "timesTables",
+  mulTable10: "timesTables",
+  mulTable11: "timesTables",
+  mulTable12: "timesTables",
+  tableChamp: "timesTables",
+  sequence3: "patterns",
+  sequence5: "patterns",
+  countBack: "patterns",
+  countBack2: "patterns",
+
+  // Mixed & challenge
+  mixed: "mixed",
+  mixedAddSub: "mixed",
+  mixedMulDiv: "mixed",
+  missingAdd: "mixed",
+  missingPlus: "mixed",
+  missingMinus: "mixed",
+  missingTimes: "mixed",
+  missingDivide: "mixed",
+  mathMarathon: "challenge",
+  speedAdd: "challenge",
+  brainTrainer: "challenge",
+  patternPro: "patterns",
+
+  // Algebra & BODMAS
+  bodmasOrderQuiz: "algebraBasics",
+  bodmasBracketBasics: "bodmasBrackets",
+  bodmasBracketTimes: "bodmasBrackets",
+  bodmasMulFirst: "bodmasMulDiv",
+  bodmasDivFirst: "bodmasMulDiv",
+  bodmasSubtractMix: "bodmasMulDiv",
+  bodmasFullMix: "bodmasFull",
+  bodmasMaster: "bodmasFull"
+};
+
+export function resolveLessonId(game) {
+  if (game.lessonId) {
+    return game.lessonId;
+  }
+  return GAME_LESSON_OVERRIDES[game.id] || LESSON_BY_CATEGORY[game.category] || "counting";
+}
+
+export function attachLessonIds(games) {
+  return games.map((game) => ({
+    ...game,
+    lessonId: game.lessonId || resolveLessonId(game)
+  }));
+}
+
+export function getLessonForGame(game) {
+  const lessonId = game.lessonId || resolveLessonId(game);
+  return getLesson(lessonId);
+}
+
+export function isGameUnlockedByLesson(progress, game) {
+  const lessonId = game.lessonId || resolveLessonId(game);
+  return isLessonComplete(progress, lessonId);
+}
+
+export function getGameUnlockHint(progress, game) {
+  const lessonId = game.lessonId || resolveLessonId(game);
+  if (isLessonComplete(progress, lessonId)) {
+    return null;
+  }
+  if (!isLessonUnlocked(progress, lessonId)) {
+    return getLessonUnlockHint(lessonId);
+  }
+  const lesson = getLesson(lessonId);
+  return `Finish ${lesson.title} to play this game! 🎧`;
+}
+
+export function getLessonGameSections(games) {
+  return LESSONS.map((lesson) => ({
+    ...lesson,
+    games: games.filter((game) => (game.lessonId || resolveLessonId(game)) === lesson.id)
+  })).filter((section) => section.games.length > 0);
+}
+
+export function getPlayableLessonTitles(progress, games) {
+  return LESSONS.filter((lesson) => {
+    const lessonGames = games.filter((game) => resolveLessonId(game) === lesson.id);
+    return lessonGames.length > 0 && isLessonComplete(progress, lesson.id);
+  }).map((lesson) => lesson.menuLabel || lesson.title.replace(" Class", ""));
+}
+
+export function getUnlockedGameCount(progress, games) {
+  return games.filter((game) => isGameUnlockedByLesson(progress, game)).length;
 }

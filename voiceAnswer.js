@@ -37,26 +37,41 @@ const WORD_NUMBERS = {
 
 const LISTEN_TIMEOUT_MS = 5000;
 
-export function parseSpokenNumber(transcript) {
+const HOMOPHONE_WORDS = new Set(["to", "too", "for", "oh", "won", "ate", "tree", "free"]);
+
+export function parseSpokenNumber(transcript, allowedValues = null) {
   if (!transcript) {
     return null;
   }
 
   const text = transcript.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
-  const digitMatch = text.match(/\d+/);
-  if (digitMatch) {
-    return Number(digitMatch[0]);
-  }
+  const allowed =
+    allowedValues == null
+      ? null
+      : allowedValues.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
 
-  const words = text.split(" ");
-  for (const word of words) {
-    if (WORD_NUMBERS[word] != null) {
-      return WORD_NUMBERS[word];
+  const digitMatches = text.match(/\d+/g) || [];
+  for (const match of digitMatches) {
+    const value = Number(match);
+    if (allowed == null || allowed.includes(value)) {
+      return value;
     }
   }
 
-  for (const [word, value] of Object.entries(WORD_NUMBERS)) {
-    if (text.includes(word)) {
+  const words = text.split(" ").filter(Boolean);
+  for (const word of words) {
+    if (HOMOPHONE_WORDS.has(word)) {
+      continue;
+    }
+    const value = WORD_NUMBERS[word];
+    if (value != null && (allowed == null || allowed.includes(value))) {
+      return value;
+    }
+  }
+
+  for (const word of words) {
+    const value = WORD_NUMBERS[word];
+    if (value != null && (allowed == null || allowed.includes(value))) {
       return value;
     }
   }
@@ -68,7 +83,7 @@ function normalizeTranscript(transcript) {
   return transcript.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function matchShapeChoice(transcript, choices) {
+function matchShapeChoice(transcript, choices, strict = false) {
   const text = normalizeTranscript(transcript);
   if (!text) {
     return null;
@@ -76,15 +91,22 @@ function matchShapeChoice(transcript, choices) {
 
   for (const choice of choices) {
     const name = getShapeName(choice).toLowerCase();
-    if (text === name || text.includes(name)) {
+    if (text === name) {
+      return choice;
+    }
+    const pattern = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+    if (pattern.test(text)) {
       return choice;
     }
   }
 
+  if (strict) {
+    return null;
+  }
+
   for (const choice of choices) {
     const name = getShapeName(choice).toLowerCase();
-    const prefix = name.slice(0, Math.min(4, name.length));
-    if (prefix.length >= 3 && text.includes(prefix)) {
+    if (text.includes(name)) {
       return choice;
     }
   }
@@ -92,27 +114,19 @@ function matchShapeChoice(transcript, choices) {
   return null;
 }
 
-export function matchSpokenToChoices(transcript, choices = [], choiceType = "number") {
+export function matchSpokenToChoices(transcript, choices = [], choiceType = "number", strict = false) {
   if (!transcript || !choices.length) {
     return null;
   }
 
   if (choiceType === "shapeName") {
-    return matchShapeChoice(transcript, choices);
+    return matchShapeChoice(transcript, choices, strict);
   }
 
   const numericChoices = choices.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
-  const parsed = parseSpokenNumber(transcript);
+  const parsed = parseSpokenNumber(transcript, numericChoices);
   if (parsed != null && numericChoices.includes(parsed)) {
     return parsed;
-  }
-
-  const text = normalizeTranscript(transcript);
-  for (const choice of numericChoices) {
-    const pattern = new RegExp(`\\b${choice}\\b`);
-    if (pattern.test(text)) {
-      return choice;
-    }
   }
 
   return null;
@@ -179,17 +193,31 @@ function extractTranscriptsFromEvent(event) {
   return [...new Set(transcripts.filter(Boolean))];
 }
 
-function resolveAnswerFromEvent(event, choices, choiceType) {
+function resolveAnswerFromEvent(event, choices, choiceType, strictExpected, expected) {
   const transcripts = extractTranscriptsFromEvent(event);
+  const effectiveChoices =
+    strictExpected && expected != null
+      ? choiceType === "shapeName"
+        ? [expected]
+        : [Number(expected)]
+      : choices;
 
-  for (const transcript of transcripts) {
-    const answer = matchSpokenToChoices(transcript, choices, choiceType);
-    if (answer != null) {
-      return { answer, transcript };
+  const tryResolve = (requireFinal) => {
+    if (requireFinal && !event.isFinal) {
+      return null;
     }
-  }
 
-  return null;
+    for (const transcript of transcripts) {
+      const answer = matchSpokenToChoices(transcript, effectiveChoices, choiceType, strictExpected);
+      if (answer != null) {
+        return { answer, transcript };
+      }
+    }
+
+    return null;
+  };
+
+  return tryResolve(true) || tryResolve(false);
 }
 
 let speechModuleCache;
@@ -287,6 +315,7 @@ export function createVoiceAnswerSession({
   choices,
   expected,
   choiceType = "number",
+  strictExpected = false,
   onTranscript,
   onResult,
   onError,
@@ -298,7 +327,13 @@ export function createVoiceAnswerSession({
     return { stop: () => {} };
   }
 
-  const numberHints = buildChoiceHints(choices, choiceType, expected);
+  const hintChoices =
+    strictExpected && expected != null
+      ? choiceType === "shapeName"
+        ? [expected]
+        : [expected]
+      : choices;
+  const numberHints = buildChoiceHints(hintChoices, choiceType, expected);
   let finished = false;
   let listenTimeout = null;
 
@@ -336,7 +371,7 @@ export function createVoiceAnswerSession({
         onTranscript?.(latest);
       }
 
-      const resolved = resolveAnswerFromEvent(event, choices, choiceType);
+      const resolved = resolveAnswerFromEvent(event, choices, choiceType, strictExpected, expected);
       if (!resolved) {
         return;
       }
@@ -378,9 +413,9 @@ export function createVoiceAnswerSession({
       contextualStrings: numberHints,
       iosTaskHint: "confirmation",
       androidIntentOptions: {
-        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 900,
-        EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 600,
-        EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 300
+        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 1200,
+        EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 800,
+        EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 400
       }
     });
   } catch (error) {
