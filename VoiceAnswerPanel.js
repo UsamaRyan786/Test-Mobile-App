@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   checkVoiceAnswerSupport,
@@ -7,7 +7,7 @@ import {
   stopVoiceAnswerSession
 } from "./voiceAnswer";
 
-export default function VoiceAnswerPanel({
+function VoiceAnswerPanel({
   choices,
   choiceType = "number",
   disabled,
@@ -168,6 +168,8 @@ export default function VoiceAnswerPanel({
     </View>
   );
 }
+
+export default memo(VoiceAnswerPanel);
 
 export function stopGameVoiceInput() {
   stopVoiceAnswerSession();

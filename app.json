@@ -6,11 +6,14 @@
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
-      "backgroundColor": "#e9f7ee"
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#38BDF8"
     },
     "assetBundlePatterns": [
-      "**/*"
+      "assets/**"
     ],
     "ios": {
       "supportsTablet": true,
@@ -21,7 +24,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#e9f7ee"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#38BDF8"
       },
       "package": "com.anonymous.numbermatchgarden",
       "permissions": [

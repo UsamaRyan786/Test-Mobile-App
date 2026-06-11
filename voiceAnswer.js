@@ -227,29 +227,40 @@ export function getSpeechModule() {
   return speechModuleCache;
 }
 
+let supportCache;
+
 export async function checkVoiceAnswerSupport() {
+  if (supportCache) {
+    return supportCache;
+  }
+
   if (isExpoGo()) {
-    return {
+    supportCache = {
       available: false,
       reason: "Expo Go cannot listen to your voice. Tap the number buttons below."
     };
+    return supportCache;
   }
 
   const module = getSpeechModule();
   if (!module) {
-    return {
+    supportCache = {
       available: false,
       reason: "Voice needs a dev build. Run: npx expo run:android"
     };
+    return supportCache;
   }
 
   try {
     if (typeof module.isRecognitionAvailable === "function" && !module.isRecognitionAvailable()) {
-      return { available: false, reason: "Speech recognition is not available on this device." };
+      supportCache = { available: false, reason: "Speech recognition is not available on this device." };
+      return supportCache;
     }
-    return { available: true, reason: null };
+    supportCache = { available: true, reason: null };
+    return supportCache;
   } catch {
-    return { available: false, reason: "Speech recognition could not start." };
+    supportCache = { available: false, reason: "Speech recognition could not start." };
+    return supportCache;
   }
 }
 

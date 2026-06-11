@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -6,13 +6,13 @@ import {
   Easing,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   StatusBar,
   Text,
   View
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -76,8 +76,6 @@ import { TEACHER_LABEL } from "./teacherConfig";
 
 const MAX_ROUNDS = 12;
 const MAX_SCORE = 5000;
-const APP_TOP_INSET =
-  Platform.OS === "android" ? (StatusBar.currentHeight ?? 28) + 8 : 10;
 const HIGH_SCORES_KEY = "@mathGarden/highScores";
 const REWARDS_KEY = "@mathGarden/rewards";
 
@@ -102,7 +100,8 @@ const THEME = {
 };
 
 const DOT_COLORS = ["#FBBF24", "#4ADE80", "#FF6B9D", "#60A5FA", "#A78BFA", "#FB923C"];
-
+const LESSON_GAME_SECTIONS = getLessonGameSections(GAMES);
+const SCROLL_PROPS = Platform.OS === "android" ? { removeClippedSubviews: true } : {};
 
 const BADGES = buildBadges(GAMES, MAX_ROUNDS);
 
@@ -150,11 +149,26 @@ async function loadProgress() {
   }
 }
 
+const DEFAULT_REWARDS = { coins: 0, badges: {}, stats: { recordBreaks: 0, totalCorrect: 0 } };
+
+async function loadAppData() {
+  try {
+    const pairs = await AsyncStorage.multiGet([HIGH_SCORES_KEY, REWARDS_KEY, PROGRESS_KEY]);
+    const stored = Object.fromEntries(pairs);
+
+    return {
+      scores: stored[HIGH_SCORES_KEY] ? JSON.parse(stored[HIGH_SCORES_KEY]) : {},
+      rewards: stored[REWARDS_KEY] ? JSON.parse(stored[REWARDS_KEY]) : DEFAULT_REWARDS,
+      progress: stored[PROGRESS_KEY] ? JSON.parse(stored[PROGRESS_KEY]) : createDefaultProgress()
+    };
+  } catch {
+    return { scores: {}, rewards: DEFAULT_REWARDS, progress: createDefaultProgress() };
+  }
+}
+
 async function saveProgressData(progress) {
   await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 }
-
-const DEFAULT_REWARDS = { coins: 0, badges: {}, stats: { recordBreaks: 0, totalCorrect: 0 } };
 
 async function clearAllAppData() {
   await AsyncStorage.multiRemove([HIGH_SCORES_KEY, REWARDS_KEY, PROGRESS_KEY]);
@@ -942,7 +956,7 @@ function LearningPathBar({ progress }) {
 function ScreenShell({ children }) {
   return (
     <LinearGradient colors={THEME.bg} style={styles.gradientRoot}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <StatusBar barStyle="dark-content" backgroundColor={THEME.bg[0]} />
         <BackgroundDecor />
         {children}
@@ -951,7 +965,7 @@ function ScreenShell({ children }) {
   );
 }
 
-export default function App() {
+function AppRoot() {
   const feedbackTimer = useRef(null);
   const titleAnim = useRef(new Animated.Value(0)).current;
   const logoAnim = useRef(new Animated.Value(0)).current;
@@ -1013,7 +1027,10 @@ export default function App() {
     return [];
   }, [roundData.target, selectedGame.id]);
 
-  const gameTheme = GAMES.find((g) => g.id === selectedGame.id) || GAMES[0];
+  const gameTheme = useMemo(
+    () => GAMES.find((game) => game.id === selectedGame.id) || GAMES[0],
+    [selectedGame.id]
+  );
 
   const titleStyle = {
     transform: [
@@ -1082,14 +1099,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    Promise.all([loadHighScores(), loadRewards(), loadProgress()]).then(
-      ([scores, rewardData, progressData]) => {
-        setHighScores(scores);
-        setRewards(rewardData);
-        setProgress(progressData);
-      }
-    );
-  }, [screen]);
+    loadAppData().then(({ scores, rewards: rewardData, progress: progressData }) => {
+      setHighScores(scores);
+      setRewards(rewardData);
+      setProgress(progressData);
+    });
+  }, []);
 
   useEffect(() => {
     progressAnim.setValue(0);
@@ -1422,14 +1437,23 @@ export default function App() {
 
     return (
       <ScreenShell>
-        <ScrollView contentContainerStyle={[styles.screen, styles.menuScreen]} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          {...SCROLL_PROPS}
+          contentContainerStyle={[styles.screen, styles.menuScreen]}
+          showsVerticalScrollIndicator={false}
+        >
           <Animated.View style={[styles.menuHeader, logoStyle]}>
-            <LinearGradient colors={["#FDE68A", "#FBBF24"]} style={styles.logoBadge}>
-              <Text style={styles.logoBadgeText}>🌈</Text>
-            </LinearGradient>
+            <View style={styles.logoBadgeWrap}>
+              <LinearGradient colors={["#38BDF8", "#FBBF24"]} style={styles.logoBadge}>
+                <Text style={styles.logoBadgeText}>123</Text>
+              </LinearGradient>
+              <View style={styles.logoVoiceBadge}>
+                <Text style={styles.logoVoiceBadgeText}>🎤</Text>
+              </View>
+            </View>
             <View style={styles.heroCopy}>
               <Text style={styles.logoTitle}>Math Talk</Text>
-              <Text style={styles.logoSubtitle}>Fun & colorful math for curious kids!</Text>
+              <Text style={styles.logoSubtitle}>Count, play, and speak your answers!</Text>
             </View>
             <Pressable
               onPress={openDashboard}
@@ -1519,7 +1543,7 @@ export default function App() {
           </LinearGradient>
 
           <View style={styles.menuGamesBlock}>
-          {getLessonGameSections(GAMES).map((section) => {
+          {LESSON_GAME_SECTIONS.map((section) => {
             const sectionLabel = `${section.emoji} ${section.menuLabel || section.title.replace(" Class", "")}`;
             const lessonComplete = isLessonComplete(progress, section.id);
             const lessonAccessible = isLessonUnlocked(progress, section.id);
@@ -1606,7 +1630,7 @@ export default function App() {
 
     return (
       <ScreenShell>
-        <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+        <ScrollView {...SCROLL_PROPS} contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
           <View style={styles.gameHeader}>
             <Pressable
               onPress={backToMenu}
@@ -1714,7 +1738,7 @@ export default function App() {
 
     return (
       <ScreenShell>
-        <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+        <ScrollView {...SCROLL_PROPS} contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
           <View style={styles.gameHeader}>
             <Pressable
               onPress={backToMenu}
@@ -1935,7 +1959,7 @@ export default function App() {
   function renderClasses() {
     return (
       <ScreenShell>
-        <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+        <ScrollView {...SCROLL_PROPS} contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
           <View style={styles.gameHeader}>
             <Pressable
               onPress={backToMenu}
@@ -1981,7 +2005,7 @@ export default function App() {
 
     return (
       <ScreenShell>
-        <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+        <ScrollView {...SCROLL_PROPS} contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
           <View style={styles.gameHeader}>
             {lessonFinished ? (
               <Pressable
@@ -2094,7 +2118,7 @@ export default function App() {
 
     return (
       <ScreenShell>
-        <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+        <ScrollView {...SCROLL_PROPS} contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
           <View style={styles.gameHeader}>
             <Pressable
               onPress={backToMenu}
@@ -2180,13 +2204,20 @@ export default function App() {
   return renderMenu();
 }
 
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppRoot />
+    </SafeAreaProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   gradientRoot: {
     flex: 1
   },
   safeArea: {
-    flex: 1,
-    paddingTop: APP_TOP_INSET
+    flex: 1
   },
   backgroundExtras: {
     ...StyleSheet.absoluteFillObject,
@@ -2267,6 +2298,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4
   },
+  logoBadgeWrap: {
+    position: "relative"
+  },
   logoBadge: {
     width: 52,
     height: 52,
@@ -2279,8 +2313,28 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4
   },
+  logoVoiceBadge: {
+    position: "absolute",
+    right: -4,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FF6B9D",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  logoVoiceBadgeText: {
+    fontSize: 12,
+    lineHeight: 14
+  },
   logoBadgeText: {
-    fontSize: 26
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    letterSpacing: 1
   },
   heroCopy: {
     flex: 1
