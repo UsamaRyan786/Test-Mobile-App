@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  ActivityIndicator,
   BackHandler,
   Easing,
   Platform,
@@ -14,13 +15,24 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   buildBadges,
   evaluateBadges,
   getBadgesByCategory,
   updateRewardStats
 } from "./badges";
+import { getCurrentUser, logoutUser } from "./authStorage";
+import LoginScreen from "./LoginScreen";
+import {
+  DEFAULT_REWARDS,
+  clearAllAppData,
+  loadAppData,
+  loadRewards,
+  saveHighScore,
+  saveProgressData,
+  saveRewards,
+  setActiveUserId
+} from "./userStorage";
 import {
   GAMES,
   createRound,
@@ -37,7 +49,6 @@ import {
   getPrompt
 } from "./games";
 import {
-  PROGRESS_KEY,
   LEVELS_PER_TIER,
   PASS_SCORE,
   MIN_LEVEL_FOR_NEXT_CATEGORY,
@@ -76,8 +87,6 @@ import { TEACHER_LABEL } from "./teacherConfig";
 
 const MAX_ROUNDS = 12;
 const MAX_SCORE = 5000;
-const HIGH_SCORES_KEY = "@mathGarden/highScores";
-const REWARDS_KEY = "@mathGarden/rewards";
 
 function toDisplayScore(correctCount) {
   const value = Number(correctCount) || 0;
@@ -113,75 +122,6 @@ const LESSON_GAME_SECTIONS = getLessonGameSections(GAMES);
 const SCROLL_PROPS = Platform.OS === "android" ? { removeClippedSubviews: true } : {};
 
 const BADGES = buildBadges(GAMES, MAX_ROUNDS);
-
-async function loadHighScores() {
-  try {
-    const raw = await AsyncStorage.getItem(HIGH_SCORES_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-async function saveHighScore(gameId, score) {
-  const scores = await loadHighScores();
-  const current = scores[gameId] || { best: 0, plays: 0 };
-  const record = {
-    best: Math.max(current.best, score),
-    plays: current.plays + 1,
-    lastScore: score
-  };
-  scores[gameId] = record;
-  await AsyncStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(scores));
-  return record;
-}
-
-async function loadRewards() {
-  try {
-    const raw = await AsyncStorage.getItem(REWARDS_KEY);
-    return raw ? JSON.parse(raw) : { coins: 0, badges: {}, stats: { recordBreaks: 0, totalCorrect: 0 } };
-  } catch {
-    return { coins: 0, badges: {}, stats: { recordBreaks: 0, totalCorrect: 0 } };
-  }
-}
-
-async function saveRewards(rewards) {
-  await AsyncStorage.setItem(REWARDS_KEY, JSON.stringify(rewards));
-}
-
-async function loadProgress() {
-  try {
-    const raw = await AsyncStorage.getItem(PROGRESS_KEY);
-    return raw ? JSON.parse(raw) : createDefaultProgress();
-  } catch {
-    return createDefaultProgress();
-  }
-}
-
-const DEFAULT_REWARDS = { coins: 0, badges: {}, stats: { recordBreaks: 0, totalCorrect: 0 } };
-
-async function loadAppData() {
-  try {
-    const pairs = await AsyncStorage.multiGet([HIGH_SCORES_KEY, REWARDS_KEY, PROGRESS_KEY]);
-    const stored = Object.fromEntries(pairs);
-
-    return {
-      scores: stored[HIGH_SCORES_KEY] ? JSON.parse(stored[HIGH_SCORES_KEY]) : {},
-      rewards: stored[REWARDS_KEY] ? JSON.parse(stored[REWARDS_KEY]) : DEFAULT_REWARDS,
-      progress: stored[PROGRESS_KEY] ? JSON.parse(stored[PROGRESS_KEY]) : createDefaultProgress()
-    };
-  } catch {
-    return { scores: {}, rewards: DEFAULT_REWARDS, progress: createDefaultProgress() };
-  }
-}
-
-async function saveProgressData(progress) {
-  await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
-}
-
-async function clearAllAppData() {
-  await AsyncStorage.multiRemove([HIGH_SCORES_KEY, REWARDS_KEY, PROGRESS_KEY]);
-}
 
 async function applyRewards(gameId, score, beatRecord, highScores) {
   const rewards = await loadRewards();
@@ -1041,7 +981,7 @@ function ScreenShell({ children }) {
   );
 }
 
-function AppRoot() {
+function AppRoot({ currentUser, onLogout }) {
   const feedbackTimer = useRef(null);
   const titleAnim = useRef(new Animated.Value(0)).current;
   const logoAnim = useRef(new Animated.Value(0)).current;
@@ -1180,7 +1120,7 @@ function AppRoot() {
       setRewards(rewardData);
       setProgress(progressData);
     });
-  }, []);
+  }, [currentUser.id]);
 
   useEffect(() => {
     progressAnim.setValue(0);
@@ -1298,10 +1238,17 @@ function AppRoot() {
     setScreen("dashboard");
   }
 
+  function confirmLogout() {
+    Alert.alert("Sign out?", "You can sign back in anytime to continue this learner's progress.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign out", style: "destructive", onPress: onLogout }
+    ]);
+  }
+
   function confirmResetProgress() {
     Alert.alert(
       "Reset all progress?",
-      "This clears classes, game levels, high scores, coins, and badges on this device. This cannot be undone.",
+      "This clears classes, game levels, high scores, coins, and badges for this account on this device. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Reset", style: "destructive", onPress: resetAppProgress }
@@ -1507,7 +1454,7 @@ function AppRoot() {
             </View>
             <View style={styles.heroCopy}>
               <Text style={styles.logoTitle}>Math Talk</Text>
-              <Text style={styles.logoSubtitle}>Count, play, and speak your answers!</Text>
+              <Text style={styles.logoSubtitle}>Hi {currentUser.displayName}! Count, play, and speak your answers!</Text>
             </View>
             <Pressable
               onPress={openDashboard}
@@ -1661,6 +1608,14 @@ function AppRoot() {
           </View>
 
           <View style={styles.menuFooter}>
+            <Pressable
+              onPress={confirmLogout}
+              style={({ pressed }) => [styles.menuLogoutButton, pressed && styles.pressedButton]}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+            >
+              <Text style={styles.menuLogoutButtonText}>Sign out ({currentUser.username})</Text>
+            </Pressable>
             <Pressable
               onPress={confirmResetProgress}
               style={({ pressed }) => [styles.menuResetButton, pressed && styles.pressedButton]}
@@ -2267,9 +2222,58 @@ function AppRoot() {
 }
 
 export default function App() {
+  const [authReady, setAuthReady] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    getCurrentUser()
+      .then((user) => {
+        if (user) {
+          setActiveUserId(user.id);
+          setCurrentUser(user);
+        }
+      })
+      .finally(() => {
+        setAuthReady(true);
+      });
+  }, []);
+
+  function handleAuthenticated(user) {
+    setActiveUserId(user.id);
+    setCurrentUser(user);
+  }
+
+  async function handleLogout() {
+    stopClassroomSpeech();
+    stopLessonSpeech();
+    stopGameVoiceInput();
+    await logoutUser();
+    setActiveUserId(null);
+    setCurrentUser(null);
+  }
+
+  if (!authReady) {
+    return (
+      <SafeAreaProvider>
+        <LinearGradient colors={THEME.bg} style={styles.gradientRoot}>
+          <SafeAreaView style={styles.safeArea}>
+            <View style={styles.authLoading}>
+              <ActivityIndicator size="large" color={THEME.coral} />
+              <Text style={styles.authLoadingText}>Loading Math Talk...</Text>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
+      </SafeAreaProvider>
+    );
+  }
+
+  if (!currentUser) {
+    return <LoginScreen onAuthenticated={handleAuthenticated} />;
+  }
+
   return (
     <SafeAreaProvider>
-      <AppRoot />
+      <AppRoot currentUser={currentUser} onLogout={handleLogout} />
     </SafeAreaProvider>
   );
 }
@@ -3809,7 +3813,33 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(148,163,184,0.25)"
+    borderTopColor: "rgba(148,163,184,0.25)",
+    gap: 10
+  },
+  menuLogoutButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
+    backgroundColor: "rgba(255,255,255,0.85)",
+    alignItems: "center"
+  },
+  menuLogoutButtonText: {
+    color: THEME.textSoft,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  authLoading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12
+  },
+  authLoadingText: {
+    color: THEME.textSoft,
+    fontSize: 15,
+    fontWeight: "700"
   },
   menuResetButton: {
     paddingVertical: 10,

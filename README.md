@@ -87,12 +87,13 @@ During games, students can **tap the microphone** and **say the answer out loud*
 - **Interactive Math Classes** — Teacher Maya at the whiteboard with a simple portrait, tap/voice answers on counting slides
 - **Per-class game unlock** — finish Counting Class → counting games only; Compare Class → compare games only; and so on
 - **Class replay** — review any completed class without resetting progress
-- **Reset all progress** — home-screen button clears classes, coins, badges, scores, and locks games again (with confirmation)
+- **User accounts** — sign in or create a profile; each learner keeps their own progress on the device
+- **Reset all progress** — home-screen button clears classes, coins, badges, and scores for the signed-in account (with confirmation)
 - **Speak your answer** — tap 🎤 in games (dev build) via `expo-speech-recognition`
 - **83 math mini-games** covering counting, shapes, compare, even/odd, addition, subtraction, multiplication, division, patterns, mixed, BODMAS, and challenge modes
 - **12 questions per game** with 4 multiple-choice answers each
 - **Star ratings** (0–3 stars) based on correct answers out of 12
-- **High score tracking** saved locally with AsyncStorage
+- **High score tracking** saved locally per account with AsyncStorage
 - **Garden coins & badges** — earn coins and unlock **450+ achievement badges**
 - **Home screen summary** — coins, badge progress, learning path, top score, and per-game best scores on each card
 - **Grouped game menu** — sections follow the **15 Math Classes** order
@@ -157,9 +158,26 @@ Stars are based on **correct answers out of 12** (not the displayed 5000 score):
 | ★★ | 8 or more |
 | ★ | 5 or more |
 
+## User accounts
+
+On launch, learners **sign in** or **create an account**. Each account stores its own:
+
+- High scores (`@mathGarden/users/{userId}/highScores`)
+- Rewards (`@mathGarden/users/{userId}/rewards`)
+- Class and level progress (`@mathGarden/users/{userId}/progress`)
+
+Account registry and session:
+
+- `@mathGarden/accounts` — usernames and hashed passwords (SHA-256 + salt via `expo-crypto`)
+- `@mathGarden/session` — currently signed-in user id
+
+Passwords are **hashed on the device** and are **not sent to a server**. Progress is **device-local** unless you add cloud sync later.
+
+Use **Sign out** on the home screen to switch learners on the same phone.
+
 ## High scores
 
-Stored on the device under `@mathGarden/highScores`.
+Stored per signed-in user under `@mathGarden/users/{userId}/highScores`.
 
 For each game the app saves:
 
@@ -177,7 +195,7 @@ High scores appear on:
 
 ## Rewards
 
-Stored on the device under `@mathGarden/rewards` as `{ coins, badges, stats }`.
+Stored per signed-in user under `@mathGarden/users/{userId}/rewards` as `{ coins, badges, stats }`.
 
 - **coins** — total garden coins
 - **badges** — map of unlocked badge IDs to timestamps
@@ -240,7 +258,8 @@ The finish screen shows up to 3 new badges at a time (with a count if more were 
 | `expo-linear-gradient` | Gradient backgrounds and cards |
 | `expo-speech` | Spoken math classes (Teacher Maya) |
 | `expo-speech-recognition` | Students speak answers in games (dev build) |
-| `@react-native-async-storage/async-storage` | High scores, coins, badges, and lesson progress |
+| `expo-crypto` | Password hashing for local accounts |
+| `@react-native-async-storage/async-storage` | Accounts, session, high scores, coins, badges, and lesson progress |
 
 ## Prerequisites
 
@@ -286,6 +305,24 @@ npx expo run:android
 npx expo run:ios
 ```
 
+### Standalone Android APK (no Metro on the phone)
+
+Debug APKs normally need the Expo dev server. This project sets `debuggableVariants = []` in `android/app/build.gradle` so **debug builds also embed the JS bundle** — the APK can run on a device by itself after you rebuild.
+
+**Release APK (recommended for sharing):**
+
+```powershell
+cd "D:\Test Proect"
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+cd android
+.\gradlew.bat assembleRelease
+```
+
+Install: `android\app\build\outputs\apk\release\app-release.apk`
+
+If the build fails with **“Filename longer than 260 characters”**, move the project to a short path (e.g. `C:\MathTalk`) or enable [Windows long paths](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation).
+
 Other start options:
 
 ```powershell
@@ -307,7 +344,10 @@ npx expo start --web
 
 ```
 .
-├── App.js              # Main app: UI, scores, rewards, screens, reset progress
+├── App.js              # Main app: UI, scores, rewards, screens, auth gate
+├── authStorage.js      # Local accounts, session, password hashing
+├── userStorage.js      # Per-user high scores, rewards, and progress keys
+├── LoginScreen.js      # Sign in / create account screen
 ├── games.js            # 83 games, round generators, categories
 ├── shapes.js           # Basic shape definitions (circle, square, triangle, …)
 ├── lessons.js          # Core Math Classes content and lesson progress helpers
@@ -329,9 +369,9 @@ npx expo start --web
 
 | Area | Details |
 |------|---------|
-| **Screens** | Menu (by class), classes list, classroom, level select, game play, dashboard |
+| **Screens** | Login, menu (by class), classes list, classroom, level select, game play, dashboard |
 | **Constants** | `MAX_ROUNDS = 12`, `MAX_SCORE = 5000`, `PASS_SCORE = 8`, `GAMES` from `games.js` |
-| **Storage keys** | `@mathGarden/highScores`, `@mathGarden/rewards`, `@mathGarden/progress` |
+| **Storage keys** | `@mathGarden/accounts`, `@mathGarden/session`, `@mathGarden/users/{userId}/…` |
 | **Classes** | `LESSONS` (15 classes), `getResumeSlideIndex`, `saveLessonCheckpoint`, `markLessonStepComplete`, replay-safe progress in `lessons.js` |
 | **Teacher** | `teacherConfig.js` — change `TEACHER_NAME`, `TEACHER_LABEL`, or `TEACHER_EMOJI` in one place |
 | **Unlock** | `lessonMap.js` maps each game to a class; `progression.js` checks level/tier unlock |
@@ -346,7 +386,41 @@ Key values in `app.json` and `teacherConfig.js`:
 - **SDK:** 54.0.0
 - **Orientation:** portrait
 - **Splash background:** `#e9f7ee`
-- **Android package:** `com.anonymous.numbermatchgarden`
+- **Android package:** `com.anonymous.numbermatchgarden` — **change this** before Google Play (see below)
+
+## Google Play Store checklist
+
+Before publishing, you will need more than just the app code:
+
+| Item | Status / action |
+|------|-----------------|
+| **Google Play Developer account** | $25 one-time fee at [play.google.com/console](https://play.google.com/console) |
+| **Unique package name** | Change `com.anonymous.numbermatchgarden` in `app.json` to your own (e.g. `com.yourcompany.mathtalk`) |
+| **Release signing key** | Generate a production keystore — do **not** ship with the debug keystore |
+| **AAB upload** | Play Store requires an **Android App Bundle** (`.aab`), not only `.apk` |
+| **Privacy policy URL** | Required — especially because the app uses the **microphone** and stores **local accounts** |
+| **Data safety form** | Declare account info and progress stored on device; no cloud sync unless you add it |
+| **Content rating** | Complete the IARC questionnaire in Play Console |
+| **Target audience** | If aimed at children, follow Google **Families** policy and COPPA rules |
+| **Store listing** | App icon, screenshots, short + full description, feature graphic |
+| **Version code** | Bump `versionCode` in `android/app/build.gradle` for each upload |
+
+**Recommended build command for Play Store:**
+
+```powershell
+cd "D:\Test Proect"
+npx eas build --platform android --profile production
+```
+
+(Requires [EAS CLI](https://docs.expo.dev/build/setup/) and an Expo account — handles signing and `.aab` creation.)
+
+**What you do NOT need from me right now** unless you want cloud login:
+
+- Backend server
+- Firebase / Supabase (optional for cross-device sync)
+- Payment integration
+
+Current login stores accounts **on the phone only**. That is fine for Play Store, but progress is **lost if the app is uninstalled** unless you add cloud backup later.
 
 ## Troubleshooting
 
@@ -358,8 +432,11 @@ Key values in `app.json` and `teacherConfig.js`:
 | Metro port conflict | Accept the alternate port and rescan the QR code |
 | Voice / mic not working | Use `npx expo run:android` or `run:ios`; Expo Go may not load speech recognition |
 | `ExpoSpeechRecognition` error | Expected in Expo Go — tap answers instead; dev build required for voice |
-| Scores or rewards missing | Data is local to the device; reinstalling Expo Go may clear it |
-| Reset everything | Home screen → **↺ Reset all progress** (clears all three storage keys) |
+| **Unable to load script** on Android | Old debug APK without Metro — rebuild (`assembleRelease` or rebuild debug after `debuggableVariants = []` change); use `npx expo start` + `npx expo run:android` for live dev |
+| `adb` not recognized | Add `%LOCALAPPDATA%\Android\Sdk\platform-tools` to PATH, or use full path to `adb.exe` |
+| `JAVA_HOME is not set` | Set `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"` before `gradlew` |
+| Scores or rewards missing | Data is per account on this device; sign in with the same username or reinstalling may clear it |
+| Reset everything | Home screen → **↺ Reset all progress** (clears the signed-in account's data) |
 
 ## License
 
